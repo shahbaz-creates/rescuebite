@@ -6,6 +6,7 @@
   <title>RescueBite</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     :root {
       --cream:      #f4faff;
@@ -843,6 +844,15 @@
       to   { opacity: 1; transform: translateY(0); }
     }
     .fade-up { animation: fadeUp 0.22s ease; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner {
+      width: 36px; height: 36px;
+      border: 3px solid var(--cream-dark);
+      border-top-color: var(--teal);
+      border-radius: 50%;
+      animation: spin 0.75s linear infinite;
+    }
   </style>
 </head>
 <body>
@@ -855,6 +865,50 @@
 
 <script>
 // ══════════════════════════════
+//  SUPABASE
+// ══════════════════════════════
+const SUPA_URL = 'https://lygnbqosegbivlcxegkq.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx5Z25icW9zZWdiaXZsY3hlZ2txIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgwODcwOTYsImV4cCI6MjA5MzY2MzA5Nn0.vI6HVo8-boowvVfizJDzqcqomFWxF8pz2Ve7e093LDQ';
+const supa = supabase.createClient(SUPA_URL, SUPA_KEY);
+
+// In-memory DB cache (raw snake_case rows from Supabase)
+let DB = { listings: [], orders: [] };
+
+// Stable device ID for this consumer
+const CID = (() => {
+  let id = localStorage.getItem('rb_cid');
+  if (!id) {
+    id = 'u_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+    localStorage.setItem('rb_cid', id);
+  }
+  return id;
+})();
+
+// ══════════════════════════════
+//  ROW MAPPERS  (DB → app)
+// ══════════════════════════════
+function mapL(r) {
+  return {
+    id: r.id, bizId: r.biz_id, bizName: r.biz_name, bizType: r.biz_type,
+    emoji: r.emoji, cat: r.cat, name: r.name, desc: r.description,
+    contents: Array.isArray(r.contents) ? r.contents : JSON.parse(r.contents || '[]'),
+    orig: r.orig, price: r.price, until: r.available_until,
+    window: r.pickup_window, qty: r.qty, rem: r.rem,
+    city: r.city, area: r.area, rating: r.rating, reviews: r.reviews,
+  };
+}
+function mapO(r) {
+  return {
+    id: r.id, listingId: r.listing_id, bizId: r.biz_id,
+    name: r.name, bizName: r.biz_name, area: r.area,
+    emoji: r.emoji, cat: r.cat, window: r.pickup_window,
+    qty: r.qty, price: r.price, orig: r.orig, total: r.total,
+    customer: r.customer, phone: r.phone, consumerId: r.consumer_id,
+    status: r.status, at: new Date(r.created_at).getTime(),
+  };
+}
+
+// ══════════════════════════════
 //  STATE
 // ══════════════════════════════
 const S = {
@@ -866,79 +920,24 @@ const S = {
   qty: 1,
   bizMode: false,
   order: null,
+  loading: true,
+  dbError: false,
   user: JSON.parse(localStorage.getItem('rb_user') || 'null') || { name: '', phone: '', email: '' },
 };
-
-// ══════════════════════════════
-//  SEED DATA
-// ══════════════════════════════
-const SEED = [
-  {
-    id: 'l1', bizId: 'b1', bizName: 'The Bombay Bakehouse', bizType: 'Artisan Bakery',
-    emoji: '🥐', cat: 'bakery', name: 'Surprise Pastry Bag',
-    desc: 'End-of-day mix of croissants, muffins, banana bread & assorted rolls. Varies daily — always a delight.',
-    contents: ['2–3 Croissants', '1–2 Muffins', 'Banana bread slice', 'Assorted rolls', 'Occasional cake slice'],
-    orig: 380, price: 149, until: '21:00', window: '7:30 PM – 9:00 PM',
-    qty: 5, rem: 3, city: 'Mumbai', area: 'Bandra West', rating: 4.8, reviews: 124,
-  },
-  {
-    id: 'l2', bizId: 'b2', bizName: 'Spice Garden', bizType: 'Indian Restaurant',
-    emoji: '🍱', cat: 'restaurant', name: 'Chef\'s Surprise Thali',
-    desc: 'Chef\'s selection of the day\'s preparations — dal, sabzi, rice, roti & dessert. Restaurant quality at rescue prices.',
-    contents: ['Dal of the day', '2 Sabzis', 'Rice / Biryani', '3 Rotis / Naan', 'Dessert (varies)'],
-    orig: 450, price: 179, until: '22:30', window: '9:30 PM – 10:30 PM',
-    qty: 8, rem: 5, city: 'Mumbai', area: 'Andheri East', rating: 4.6, reviews: 89,
-  },
-  {
-    id: 'l3', bizId: 'b3', bizName: 'Café Piccolo', bizType: 'European Café',
-    emoji: '☕', cat: 'cafe', name: 'Café Closing Basket',
-    desc: 'Whatever was made fresh today and didn\'t sell — sandwiches, quiches, muffins, and pastries.',
-    contents: ['2 Sandwiches', '1 Quiche slice', '2 Pastries', 'Brownie / cookie', 'Occasional bread loaf'],
-    orig: 520, price: 199, until: '20:00', window: '6:30 PM – 8:00 PM',
-    qty: 4, rem: 2, city: 'Mumbai', area: 'Colaba', rating: 4.9, reviews: 203,
-  },
-  {
-    id: 'l4', bizId: 'b4', bizName: 'Green Bowl', bizType: 'Health Food Kitchen',
-    emoji: '🥗', cat: 'restaurant', name: 'Wellness Rescue Bowl',
-    desc: 'End-of-day healthy meals — grain bowls, wraps, and salads that are fresh and delicious.',
-    contents: ['Grain bowl / wrap', 'Salad portion', 'Protein add-on', 'Dressing & sides', 'Fresh juice (occasional)'],
-    orig: 410, price: 159, until: '21:30', window: '8:00 PM – 9:30 PM',
-    qty: 6, rem: 6, city: 'Mumbai', area: 'Powai', rating: 4.7, reviews: 67,
-  },
-  {
-    id: 'l5', bizId: 'b5', bizName: 'Mithai Wala', bizType: 'Sweet Shop',
-    emoji: '🍮', cat: 'bakery', name: 'Mithai Mix Box',
-    desc: 'Fresh sweets from today\'s batch — ladoos, barfi, halwa and seasonal specialties.',
-    contents: ['3–4 Ladoos', 'Barfi pieces', 'Halwa portion', 'Seasonal special', 'Sometimes gulab jamun!'],
-    orig: 350, price: 129, until: '20:30', window: '7:00 PM – 8:30 PM',
-    qty: 10, rem: 7, city: 'Mumbai', area: 'Dadar', rating: 4.5, reviews: 312,
-  },
-  {
-    id: 'l6', bizId: 'b6', bizName: 'The Pizza Republic', bizType: 'Pizza Restaurant',
-    emoji: '🍕', cat: 'restaurant', name: 'Late Night Slice Pack',
-    desc: 'Unsold slices from various pizzas of the day — margherita, pepperoni, veg supreme and more.',
-    contents: ['3–4 Pizza slices', 'Garlic bread', 'Dip sauces', 'Occasional pasta'],
-    orig: 480, price: 189, until: '23:00', window: '10:00 PM – 11:00 PM',
-    qty: 6, rem: 4, city: 'Mumbai', area: 'Lower Parel', rating: 4.4, reviews: 156,
-  },
-];
 
 const BIZ = { id: 'b1', name: 'The Bombay Bakehouse', type: 'Artisan Bakery', area: 'Bandra West, Mumbai' };
 
 // ══════════════════════════════
-//  PERSISTENCE
+//  DATA ACCESS  (from DB cache)
 // ══════════════════════════════
-function getL()  { return JSON.parse(localStorage.getItem('rb_l')  || 'null') || [...SEED]; }
-function setL(v) { localStorage.setItem('rb_l', JSON.stringify(v)); }
-function getO()  { return JSON.parse(localStorage.getItem('rb_o')  || '[]'); }
-function setO(v) { localStorage.setItem('rb_o', JSON.stringify(v)); }
-function getBizO()  { return JSON.parse(localStorage.getItem('rb_bo') || '[]'); }
-function setBizO(v) { localStorage.setItem('rb_bo', JSON.stringify(v)); }
+function getL()    { return DB.listings.filter(r => r.city === S.city).map(mapL); }
+function getO()    { return DB.orders.filter(r => r.consumer_id === CID).map(mapO); }
+function getBizO() { return DB.orders.filter(r => r.biz_id === BIZ.id).map(mapO); }
 
 // ══════════════════════════════
 //  HELPERS
 // ══════════════════════════════
-const fp   = p => '₹' + p;
+const fp    = p => '₹' + p;
 const pct   = (o, p) => Math.round(((o - p) / o) * 100) + '% off';
 const save  = (o, p) => '₹' + (o - p) + ' saved';
 const uid   = () => 'o_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
@@ -1011,8 +1010,7 @@ function renderHeader() {
     return;
   }
 
-  const orders  = getO();
-  const active  = orders.filter(o => o.status === 'confirmed').length;
+  const active = getO().filter(o => o.status === 'confirmed').length;
   el.innerHTML = `
     <div class="header-main">
       <div class="logo" onclick="go('home')"><span class="logo-dot"></span>RescueBite</div>
@@ -1064,16 +1062,29 @@ function renderContent() {
 //  VIEW: HOME
 // ══════════════════════════════
 function vHome() {
-  const all = getL().filter(l => l.city === S.city);
-  const shown = all.filter(l => {
+  if (S.loading) return `
+    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:60vh;gap:16px">
+      <div class="spinner"></div>
+      <div style="font-size:0.85rem;color:var(--muted)">Loading listings…</div>
+    </div>`;
+
+  if (S.dbError) return `
+    <div class="empty">
+      <div class="empty-icon">⚠️</div>
+      <div class="empty-title">Connection Error</div>
+      <div class="empty-desc">Couldn't connect to the database. Please check your internet connection and try again.</div>
+      <div style="margin-top:16px;width:100%;padding:0 28px"><button class="btn-primary" onclick="initDB()">Retry</button></div>
+    </div>`;
+
+  const shown = getL().filter(l => {
     const catOk    = S.filter === 'all' || l.cat === S.filter;
     const searchOk = !S.search || l.name.toLowerCase().includes(S.search.toLowerCase()) || l.bizName.toLowerCase().includes(S.search.toLowerCase());
     return catOk && searchOk;
   });
 
-  const orders = getO();
-  const mSaved  = orders.reduce((s, o) => s + (o.orig - o.price) * o.qty, 0);
-  const mResc   = orders.reduce((s, o) => s + o.qty, 0);
+  const myOrders = getO();
+  const mSaved  = myOrders.reduce((s, o) => s + (o.orig - o.price) * o.qty, 0);
+  const mResc   = myOrders.reduce((s, o) => s + o.qty, 0);
 
   const cats = [
     { id: 'all', icon: '🌟', label: 'All' },
@@ -1138,7 +1149,7 @@ function listingCard(l) {
       <div class="card-body">
         <div class="card-biz">📍 ${l.bizName} · ${l.area}</div>
         <div class="card-name">${l.name}</div>
-        <div class="card-desc">${l.desc.length > 85 ? l.desc.slice(0,85) + '…' : l.desc}</div>
+        <div class="card-desc">${l.desc && l.desc.length > 85 ? l.desc.slice(0,85) + '…' : (l.desc || '')}</div>
         <div class="card-footer">
           <div>
             <span class="price-now">${fp(l.price)}</span>
@@ -1353,7 +1364,9 @@ function vOrders() {
             <div class="oc-price">${fp(o.total)}</div>
           </div>
           <div class="oc-footer">
-            <div class="status-pill confirmed">✓ Confirmed</div>
+            <div class="status-pill ${o.status === 'collected' ? 'collected' : 'confirmed'}">
+              ${o.status === 'collected' ? '✓ Collected' : '✓ Confirmed'}
+            </div>
             <div class="oc-date">${timeAgo(o.at)} · Pickup ${o.window}</div>
           </div>
         </div>`).join('')}
@@ -1408,10 +1421,6 @@ function vProfile() {
         <div class="pi-icon">💚</div>
         <div class="pi-text"><div class="pi-label">About RescueBite</div><div class="pi-sub">Fighting food waste, one meal at a time</div></div>
       </div>
-      ${u.name ? `
-      <div style="padding:12px 0 8px">
-        <button class="btn-danger" onclick="resetApp()">Reset App Data</button>
-      </div>` : ''}
     </div>`;
 }
 
@@ -1419,9 +1428,9 @@ function vProfile() {
 //  VIEW: BIZ DASHBOARD
 // ══════════════════════════════
 function vBizDash() {
-  const listings  = getL().filter(l => l.bizId === BIZ.id);
+  const listings  = DB.listings.filter(r => r.biz_id === BIZ.id).map(mapL);
   const bizOrders = getBizO();
-  const newCount  = bizOrders.filter(o => o.status === 'new').length;
+  const newCount  = bizOrders.filter(o => o.status === 'confirmed').length;
   const totalSold = listings.reduce((s, l) => s + (l.qty - l.rem), 0);
   const revenue   = bizOrders.reduce((s, o) => s + o.total, 0);
 
@@ -1492,14 +1501,14 @@ function vBizOrders() {
               <div class="boc-id">#${o.id.slice(-6).toUpperCase()}</div>
               <div class="boc-name">${o.name}</div>
             </div>
-            <div class="status-pill ${o.status === 'new' ? 'new-order-pill' : 'collected'}">${o.status === 'new' ? '🔔 New' : '✓ Done'}</div>
+            <div class="status-pill ${o.status === 'confirmed' ? 'new-order-pill' : 'collected'}">${o.status === 'confirmed' ? '🔔 New' : '✓ Done'}</div>
           </div>
           <div class="boc-detail">
             👤 ${o.customer || 'Customer'} &nbsp;·&nbsp; 📞 ${o.phone || 'N/A'}<br>
             📦 ${o.qty} bag${o.qty > 1 ? 's' : ''} &nbsp;·&nbsp; Pickup ${o.window}<br>
             💰 ${fp(o.total)} to collect
           </div>
-          ${o.status === 'new' ? `
+          ${o.status === 'confirmed' ? `
           <div class="boc-actions">
             <button class="btn-sm primary" onclick="markDone('${o.id}')">Mark as Collected ✓</button>
             <button class="btn-sm outline" onclick="go('bizdash')">Dashboard</button>
@@ -1567,7 +1576,7 @@ function vNewListing() {
         </div>
       </div>
 
-      <button class="btn-primary" onclick="postListing()">🚀 Post Listing</button>
+      <button class="btn-primary" id="post-btn" onclick="postListing()">🚀 Post Listing</button>
       <p style="text-align:center;font-size:0.72rem;color:var(--muted);margin-top:8px">Customers nearby will see this immediately</p>
     </div>`;
 }
@@ -1603,38 +1612,51 @@ function changeQty(d) {
   if (ct && l) ct.textContent = fp(l.price * S.qty);
 }
 
-function confirmOrder(lid) {
+async function confirmOrder(lid) {
   const name  = document.getElementById('co-name')?.value.trim();
   const phone = document.getElementById('co-phone')?.value.trim();
   if (!name || !phone) { showToast('Please fill in your name and phone'); return; }
 
-  const listings = getL();
-  const l = listings.find(x => x.id === lid);
+  const l = getL().find(x => x.id === lid);
   if (!l || l.rem < S.qty) { showToast('Not enough bags available'); return; }
+
+  const btn = document.getElementById('confirm-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Confirming…'; }
 
   S.user = { ...S.user, name, phone };
   localStorage.setItem('rb_user', JSON.stringify(S.user));
 
-  l.rem -= S.qty;
-  setL(listings);
-
-  const order = {
-    id: uid(), listingId: lid, bizId: l.bizId,
-    name: l.name, bizName: l.bizName, area: l.area,
-    emoji: l.emoji, cat: l.cat, window: l.window,
+  const orderId = uid();
+  const orderRow = {
+    id: orderId, listing_id: lid, biz_id: l.bizId,
+    name: l.name, biz_name: l.bizName, area: l.area,
+    emoji: l.emoji, cat: l.cat, pickup_window: l.window,
     qty: S.qty, price: l.price, orig: l.orig,
     total: l.price * S.qty,
-    customer: name, phone, status: 'confirmed', at: Date.now(),
+    customer: name, phone, consumer_id: CID, status: 'confirmed',
   };
 
-  const orders = getO(); orders.push(order); setO(orders);
-  const bizOrders = getBizO(); bizOrders.push({ ...order, status: 'new' }); setBizO(bizOrders);
+  const [{ error: oe }, { error: le }] = await Promise.all([
+    supa.from('orders').insert(orderRow),
+    supa.from('listings').update({ rem: l.rem - S.qty }).eq('id', lid),
+  ]);
 
-  S.order = order;
+  if (oe || le) {
+    showToast('Error placing order — please try again');
+    if (btn) { btn.disabled = false; btn.textContent = `Confirm Reservation — ₹${l.price * S.qty}`; }
+    return;
+  }
+
+  // Update cache
+  DB.orders.push({ ...orderRow, created_at: new Date().toISOString() });
+  const dbL = DB.listings.find(x => x.id === lid);
+  if (dbL) dbL.rem -= S.qty;
+
+  S.order = mapO({ ...orderRow, created_at: new Date().toISOString() });
   go('success');
 }
 
-function postListing() {
+async function postListing() {
   const name  = document.getElementById('nl-name')?.value.trim();
   const cat   = document.getElementById('nl-cat')?.value;
   const desc  = document.getElementById('nl-desc')?.value.trim();
@@ -1648,33 +1670,46 @@ function postListing() {
   if (price >= orig) { showToast('Rescue price must be less than original price'); return; }
   if (qty < 1)       { showToast('Quantity must be at least 1'); return; }
 
+  const btn = document.getElementById('post-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Posting…'; }
+
   const emojiMap = { bakery: '🥐', restaurant: '🍱', cafe: '☕', grocery: '🛒' };
-  const listing = {
-    id: 'l' + Date.now(), bizId: BIZ.id, bizName: BIZ.name, bizType: BIZ.type,
-    emoji: emojiMap[cat] || '🍽️', cat, name, desc,
+  const listingRow = {
+    id: 'l' + Date.now(), biz_id: BIZ.id, biz_name: BIZ.name, biz_type: BIZ.type,
+    emoji: emojiMap[cat] || '🍽️', cat, name, description: desc,
     contents: ['Fresh daily items', 'Quality assured', 'Same-day pickup only'],
-    orig, price, until, window: fmtTime(from) + ' – ' + fmtTime(until),
-    qty, rem: qty, city: S.city, area: BIZ.area.split(',')[0], rating: 4.8, reviews: 0,
+    orig, price, available_until: until,
+    pickup_window: fmtTime(from) + ' – ' + fmtTime(until),
+    qty, rem: qty, city: S.city, area: BIZ.area.split(',')[0],
+    rating: 4.8, reviews: 0,
   };
 
-  const listings = getL(); listings.push(listing); setL(listings);
+  const { error } = await supa.from('listings').insert(listingRow);
+  if (error) {
+    showToast('Error posting listing — please try again');
+    if (btn) { btn.disabled = false; btn.textContent = '🚀 Post Listing'; }
+    return;
+  }
+
+  DB.listings.push(listingRow);
   showToast('Listing posted! Customers can see it now.');
   go('bizdash');
 }
 
-function deleteListing(id) {
+async function deleteListing(id) {
   if (!confirm('Remove this listing?')) return;
-  const listings = getL().filter(l => l.id !== id);
-  setL(listings);
+  const { error } = await supa.from('listings').delete().eq('id', id);
+  if (error) { showToast('Error removing listing'); return; }
+  DB.listings = DB.listings.filter(l => l.id !== id);
   showToast('Listing removed');
   render();
 }
 
-function markDone(id) {
-  const orders = getBizO();
-  const o = orders.find(x => x.id === id);
-  if (o) o.status = 'done';
-  setBizO(orders);
+async function markDone(id) {
+  const { error } = await supa.from('orders').update({ status: 'collected' }).eq('id', id);
+  if (error) { showToast('Error updating order'); return; }
+  const o = DB.orders.find(x => x.id === id);
+  if (o) o.status = 'collected';
   showToast('Marked as collected ✓');
   render();
 }
@@ -1692,15 +1727,6 @@ function editProfile() {
   render();
 }
 
-function resetApp() {
-  if (!confirm('Reset all app data? This cannot be undone.')) return;
-  localStorage.clear();
-  S.user = { name: '', phone: '', email: '' };
-  S.view = 'home'; S.filter = 'all'; S.bizMode = false; S.city = 'Mumbai';
-  render();
-  showToast('App data reset');
-}
-
 // ══════════════════════════════
 //  EVENT BINDING
 // ══════════════════════════════
@@ -1712,18 +1738,17 @@ function bindEvents() {
     clearTimeout(window._st);
     window._st = setTimeout(() => {
       const el = document.getElementById('content');
-      const listings = getL().filter(l => l.city === S.city).filter(l => {
+      const shown = getL().filter(l => {
         const catOk    = S.filter === 'all' || l.cat === S.filter;
         const searchOk = !S.search || l.name.toLowerCase().includes(S.search.toLowerCase()) || l.bizName.toLowerCase().includes(S.search.toLowerCase());
         return catOk && searchOk;
       });
-      // Patch just the listings area, preserving search focus
-      const grid = el.querySelector('.listings');
+      const grid  = el.querySelector('.listings');
       const empty = el.querySelector('.empty');
-      const secH = el.querySelector('.sec-header h3');
-      if (secH) secH.innerHTML = `Available Now ${listings.length > 0 ? `<span style="color:var(--muted);font-weight:500;font-size:0.82rem">(${listings.length})</span>` : ''}`;
-      if (listings.length === 0) {
-        if (grid)  grid.innerHTML = '';
+      const secH  = el.querySelector('.sec-header h3');
+      if (secH) secH.innerHTML = `Available Now ${shown.length > 0 ? `<span style="color:var(--muted);font-weight:500;font-size:0.82rem">(${shown.length})</span>` : ''}`;
+      if (shown.length === 0) {
+        if (grid) grid.innerHTML = '';
         if (empty) empty.innerHTML = '<div class="empty-icon">🥲</div><div class="empty-title">No bags found</div><div class="empty-desc">Try a different filter or check back soon.</div>';
         else if (grid) {
           grid.outerHTML = `<div class="empty"><div class="empty-icon">🥲</div><div class="empty-title">No bags found</div><div class="empty-desc">Try a different filter or check back soon.</div></div>`;
@@ -1733,7 +1758,7 @@ function bindEvents() {
         if (target) {
           const div = document.createElement('div');
           div.className = 'listings';
-          div.innerHTML = listings.map(listingCard).join('');
+          div.innerHTML = shown.map(listingCard).join('');
           target.replaceWith(div);
         }
       }
@@ -1744,10 +1769,30 @@ function bindEvents() {
 // ══════════════════════════════
 //  INIT
 // ══════════════════════════════
-window.addEventListener('DOMContentLoaded', () => {
-  if (!localStorage.getItem('rb_l')) setL(SEED);
+async function initDB() {
+  S.loading = true;
+  S.dbError = false;
   render();
-});
+
+  const [{ data: listings, error: le }, { data: orders, error: oe }] = await Promise.all([
+    supa.from('listings').select('*').order('created_at'),
+    supa.from('orders').select('*').order('created_at', { ascending: false }),
+  ]);
+
+  if (le || oe) {
+    S.loading = false;
+    S.dbError = true;
+    render();
+    return;
+  }
+
+  DB.listings = listings || [];
+  DB.orders   = orders   || [];
+  S.loading   = false;
+  render();
+}
+
+window.addEventListener('DOMContentLoaded', initDB);
 </script>
 </body>
 </html>
