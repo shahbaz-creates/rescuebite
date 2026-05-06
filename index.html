@@ -1,0 +1,1753 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+  <title>RescueBite</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --cream:      #f4faff;
+      --cream-dark: #e0f0fb;
+      --teal:       #006d77;
+      --teal-light: #82d3de;
+      --teal-dark:  #00353c;
+      --saffron:    #ffab69;
+      --saffron-mid:#f4a261;
+      --terra:      #e76f51;
+      --dark:       #0e1d25;
+      --muted:      #3e494a;
+      --radius:     1rem;
+      --radius-lg:  1.5rem;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { height: 100%; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #e8eef2;
+      min-height: 100%;
+      display: flex;
+      justify-content: center;
+    }
+
+    #app {
+      width: 100%;
+      max-width: 430px;
+      min-height: 100vh;
+      background: white;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 0 60px rgba(0,0,0,0.15);
+    }
+
+    h1, h2, h3, .jakarta { font-family: 'Plus Jakarta Sans', sans-serif; }
+
+    /* ── HEADER ── */
+    #header {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: white;
+      border-bottom: 1px solid rgba(0,0,0,0.06);
+      flex-shrink: 0;
+    }
+    .header-main {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 20px;
+      min-height: 56px;
+    }
+    .logo {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-weight: 800;
+      font-size: 1.2rem;
+      color: var(--teal-dark);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .logo-dot {
+      width: 8px; height: 8px;
+      background: var(--saffron);
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .back-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--teal);
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      padding: 4px 0;
+    }
+    .back-btn::before { content: '←'; font-size: 1rem; }
+    .header-title {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-weight: 700;
+      font-size: 0.95rem;
+    }
+    .icon-btn {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      border: none;
+      background: var(--cream);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: background 0.2s;
+      flex-shrink: 0;
+      position: relative;
+    }
+    .icon-btn:hover { background: var(--cream-dark); }
+    .badge {
+      position: absolute;
+      top: -2px; right: -2px;
+      background: var(--terra);
+      color: white;
+      font-size: 0.55rem;
+      font-weight: 700;
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .header-right { display: flex; align-items: center; gap: 8px; }
+    .location-bar {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 0 20px 10px;
+      cursor: pointer;
+    }
+    .loc-text { font-size: 0.83rem; font-weight: 500; }
+    .loc-arrow { font-size: 0.65rem; color: var(--muted); margin-left: 2px; }
+
+    /* ── CONTENT ── */
+    #content {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding-bottom: 72px;
+      scrollbar-width: none;
+    }
+    #content::-webkit-scrollbar { display: none; }
+
+    /* ── TAB BAR ── */
+    #tab-bar {
+      position: sticky;
+      bottom: 0;
+      background: white;
+      border-top: 1px solid rgba(0,0,0,0.08);
+      display: flex;
+      z-index: 50;
+      flex-shrink: 0;
+    }
+    .tab {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 10px 0 8px;
+      cursor: pointer;
+      color: var(--muted);
+      transition: color 0.15s;
+      gap: 2px;
+      user-select: none;
+    }
+    .tab.active { color: var(--teal); }
+    .tab-icon { font-size: 1.25rem; line-height: 1; }
+    .tab-label { font-size: 0.62rem; font-weight: 600; letter-spacing: 0.02em; }
+
+    /* ── SEARCH ── */
+    .search-wrap {
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      gap: 0;
+    }
+    .search-inner {
+      flex: 1;
+      position: relative;
+    }
+    .search-icon {
+      position: absolute;
+      left: 13px; top: 50%;
+      transform: translateY(-50%);
+      font-size: 0.9rem;
+      pointer-events: none;
+    }
+    .search-input {
+      width: 100%;
+      border: 1.5px solid var(--cream-dark);
+      border-radius: 12px;
+      padding: 10px 14px 10px 38px;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.875rem;
+      background: var(--cream);
+      color: var(--dark);
+      outline: none;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .search-input:focus { border-color: var(--teal-light); background: white; }
+    .search-input::placeholder { color: var(--muted); opacity: 0.65; }
+
+    /* ── CHIPS ── */
+    .chip-row {
+      padding: 2px 20px 14px;
+      display: flex;
+      gap: 7px;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .chip-row::-webkit-scrollbar { display: none; }
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 6px 14px;
+      border-radius: 2rem;
+      border: 1.5px solid rgba(0,0,0,0.1);
+      font-size: 0.78rem;
+      font-weight: 500;
+      cursor: pointer;
+      white-space: nowrap;
+      background: white;
+      color: var(--muted);
+      transition: all 0.15s;
+      flex-shrink: 0;
+      user-select: none;
+    }
+    .chip.active {
+      background: var(--teal-dark);
+      border-color: var(--teal-dark);
+      color: white;
+    }
+
+    /* ── STATS BANNER ── */
+    .stats-banner {
+      margin: 0 20px 16px;
+      background: var(--teal-dark);
+      border-radius: var(--radius-lg);
+      padding: 18px 20px;
+      display: flex;
+    }
+    .sb-item {
+      flex: 1;
+      text-align: center;
+    }
+    .sb-item + .sb-item {
+      border-left: 1px solid rgba(255,255,255,0.12);
+    }
+    .sb-val {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-weight: 800;
+      font-size: 1.35rem;
+      color: var(--saffron);
+    }
+    .sb-lbl {
+      font-size: 0.65rem;
+      color: rgba(255,255,255,0.6);
+      margin-top: 1px;
+      line-height: 1.4;
+    }
+
+    /* ── SECTION HEADER ── */
+    .sec-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 20px 8px;
+    }
+    .sec-header h3 { font-size: 0.95rem; font-weight: 700; }
+    .sec-link { font-size: 0.78rem; font-weight: 600; color: var(--teal); cursor: pointer; }
+
+    /* ── LISTING CARDS ── */
+    .listings { display: flex; flex-direction: column; gap: 12px; padding: 4px 20px 20px; }
+
+    .listing-card {
+      background: white;
+      border-radius: var(--radius-lg);
+      border: 1px solid rgba(0,0,0,0.07);
+      overflow: hidden;
+      cursor: pointer;
+      transition: transform 0.18s, box-shadow 0.18s;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+      user-select: none;
+    }
+    .listing-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.09); }
+    .listing-card:active { transform: scale(0.985); }
+
+    .card-banner {
+      height: 112px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      font-size: 3.5rem;
+    }
+    .card-banner.bakery   { background: linear-gradient(135deg, #fef3e8, #ffe0bb); }
+    .card-banner.restaurant { background: linear-gradient(135deg, #e0f5f7, #b8eaf0); }
+    .card-banner.cafe     { background: linear-gradient(135deg, #fde8e3, #fcc9bd); }
+    .card-banner.grocery  { background: linear-gradient(135deg, #e8f5e9, #c8e6c9); }
+
+    .cb-badge {
+      position: absolute;
+      top: 10px; right: 10px;
+      background: var(--terra);
+      color: white;
+      font-size: 0.68rem;
+      font-weight: 700;
+      padding: 3px 9px;
+      border-radius: 2rem;
+    }
+    .cb-timer {
+      position: absolute;
+      top: 10px; left: 10px;
+      background: rgba(14,29,37,0.72);
+      color: white;
+      font-size: 0.66rem;
+      font-weight: 600;
+      padding: 3px 9px;
+      border-radius: 2rem;
+      backdrop-filter: blur(4px);
+    }
+
+    .card-body { padding: 14px 16px; }
+    .card-biz {
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-bottom: 3px;
+      display: flex;
+      align-items: center;
+      gap: 3px;
+    }
+    .card-name { font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 700; font-size: 0.92rem; margin-bottom: 5px; }
+    .card-desc { font-size: 0.8rem; color: var(--muted); line-height: 1.45; margin-bottom: 10px; }
+    .card-footer { display: flex; align-items: center; justify-content: space-between; }
+    .price-now { font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800; font-size: 1.15rem; color: var(--teal); }
+    .price-was { font-size: 0.75rem; color: var(--muted); text-decoration: line-through; margin-left: 6px; }
+    .card-rem { font-size: 0.72rem; font-weight: 600; }
+    .card-rem.urgent { color: var(--terra); }
+    .card-rem.ok { color: var(--teal); }
+
+    /* ── MODE TOGGLE ── */
+    .mode-toggle {
+      margin: 8px 20px 20px;
+      padding: 14px 18px;
+      background: var(--cream);
+      border-radius: var(--radius);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      border: 1.5px solid var(--cream-dark);
+      transition: border-color 0.2s, background 0.2s;
+      user-select: none;
+    }
+    .mode-toggle:hover { border-color: var(--teal-light); background: #ebf5fc; }
+    .mt-label { font-size: 0.85rem; font-weight: 600; }
+    .mt-sub { font-size: 0.74rem; color: var(--muted); margin-top: 1px; }
+
+    /* ── DETAIL VIEW ── */
+    .detail-hero {
+      height: 190px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      font-size: 5rem;
+    }
+    .detail-content { padding: 22px 20px; }
+    .detail-biz-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 3px; }
+    .detail-biz-name { font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 700; font-size: 0.95rem; }
+    .rating-pill {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: var(--cream);
+      padding: 3px 10px;
+      border-radius: 1rem;
+      font-size: 0.78rem;
+      font-weight: 600;
+    }
+    .detail-loc { font-size: 0.8rem; color: var(--muted); margin-bottom: 14px; }
+    .detail-title { font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800; font-size: 1.35rem; color: var(--dark); margin-bottom: 7px; line-height: 1.2; }
+    .detail-desc { font-size: 0.88rem; color: var(--muted); line-height: 1.6; margin-bottom: 20px; }
+    .divider { height: 1px; background: var(--cream-dark); margin: 18px 0; }
+
+    .info-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .info-icon {
+      width: 36px; height: 36px;
+      background: var(--cream);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      flex-shrink: 0;
+    }
+    .info-label { font-size: 0.68rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+    .info-val { font-size: 0.88rem; font-weight: 600; margin-top: 1px; }
+
+    .contents-list { list-style: none; display: flex; flex-direction: column; gap: 7px; margin-top: 10px; }
+    .contents-list li {
+      font-size: 0.85rem; color: var(--muted);
+      display: flex; align-items: center; gap: 9px;
+    }
+    .contents-list li::before {
+      content: '✓';
+      width: 20px; height: 20px;
+      background: rgba(0,109,119,0.1);
+      color: var(--teal);
+      border-radius: 50%;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 0.65rem; font-weight: 700; flex-shrink: 0;
+    }
+
+    .price-box {
+      background: var(--cream);
+      border-radius: var(--radius);
+      padding: 14px 18px;
+      margin: 16px 0;
+    }
+    .pb-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; font-size: 0.85rem; }
+    .pb-row .pb-lbl { color: var(--muted); }
+    .pb-row.total { border-top: 1px dashed rgba(0,0,0,0.1); margin-top: 5px; padding-top: 10px; }
+    .pb-row.total .pb-lbl { font-weight: 700; color: var(--dark); }
+    .pb-row.total .pb-val { font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800; font-size: 1.05rem; color: var(--teal); }
+    .save-chip {
+      background: var(--saffron);
+      color: var(--dark);
+      font-size: 0.67rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 1rem;
+      margin-left: 6px;
+    }
+
+    /* ── STICKY FOOTER ── */
+    .sticky-cta {
+      position: sticky;
+      bottom: 0;
+      padding: 12px 20px 16px;
+      background: linear-gradient(to top, white 85%, transparent);
+    }
+
+    .btn-primary {
+      width: 100%;
+      background: var(--teal);
+      color: white;
+      border: none;
+      padding: 15px 24px;
+      border-radius: var(--radius-lg);
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .btn-primary:hover { background: var(--teal-dark); transform: translateY(-1px); }
+    .btn-primary:active { transform: scale(0.98); }
+    .btn-primary:disabled { background: #a0b4b6; cursor: not-allowed; transform: none; }
+    .btn-secondary {
+      width: 100%;
+      background: white;
+      color: var(--teal);
+      border: 2px solid var(--teal);
+      padding: 13px 24px;
+      border-radius: var(--radius-lg);
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .btn-secondary:hover { background: var(--cream); }
+    .btn-danger {
+      width: 100%;
+      background: var(--terra);
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: var(--radius-lg);
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 0.88rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-danger:hover { background: #c4533a; }
+
+    /* ── CHECKOUT ── */
+    .co-section {
+      background: white;
+      border-radius: var(--radius-lg);
+      margin: 14px 20px;
+      padding: 18px;
+      border: 1px solid rgba(0,0,0,0.06);
+      box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+    }
+    .co-section-title {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      margin-bottom: 14px;
+    }
+    .order-preview {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .op-emoji {
+      width: 50px; height: 50px;
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.7rem;
+      flex-shrink: 0;
+    }
+    .op-name { font-weight: 700; font-size: 0.88rem; }
+    .op-biz { font-size: 0.75rem; color: var(--muted); }
+    .op-price { font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800; font-size: 1.05rem; color: var(--teal); }
+
+    .qty-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 14px;
+      padding-top: 12px;
+      border-top: 1px solid var(--cream-dark);
+    }
+    .qty-lbl { font-size: 0.85rem; color: var(--muted); }
+    .qty-ctrl { display: flex; align-items: center; gap: 12px; }
+    .qty-btn {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      border: 1.5px solid var(--cream-dark);
+      background: white;
+      cursor: pointer;
+      font-size: 1rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--teal);
+      transition: all 0.15s;
+    }
+    .qty-btn:hover { background: var(--cream); border-color: var(--teal-light); }
+    .qty-val { font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800; font-size: 1.05rem; min-width: 20px; text-align: center; }
+
+    .form-field { margin-bottom: 12px; }
+    .form-label { display: block; font-size: 0.72rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 5px; }
+    .form-input {
+      width: 100%;
+      border: 1.5px solid var(--cream-dark);
+      border-radius: 10px;
+      padding: 10px 13px;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.88rem;
+      color: var(--dark);
+      background: var(--cream);
+      outline: none;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .form-input:focus { border-color: var(--teal-light); background: white; }
+    .form-input::placeholder { color: var(--muted); opacity: 0.6; }
+    select.form-input {
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%233e494a' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 13px center;
+      padding-right: 34px;
+    }
+    textarea.form-input { resize: vertical; min-height: 78px; }
+
+    .price-summary-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.85rem;
+      padding: 5px 0;
+    }
+    .price-summary-row .ps-lbl { color: var(--muted); }
+    .price-summary-row.total-row {
+      padding-top: 10px;
+      margin-top: 5px;
+      border-top: 1px solid var(--cream-dark);
+      font-weight: 700;
+    }
+    .price-summary-row.total-row .ps-val {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-weight: 800;
+      font-size: 1rem;
+      color: var(--teal-dark);
+    }
+
+    /* ── SUCCESS ── */
+    .success-view {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      padding: 50px 28px 40px;
+    }
+    .success-circle {
+      width: 90px; height: 90px;
+      background: rgba(0,109,119,0.1);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 2.8rem;
+      margin-bottom: 20px;
+      animation: pop 0.4s cubic-bezier(0.175,0.885,0.32,1.275);
+    }
+    @keyframes pop {
+      from { transform: scale(0); opacity: 0; }
+      to   { transform: scale(1); opacity: 1; }
+    }
+    .success-title { font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800; font-size: 1.7rem; color: var(--teal-dark); margin-bottom: 8px; }
+    .success-sub { font-size: 0.88rem; color: var(--muted); line-height: 1.6; margin-bottom: 28px; }
+    .success-card {
+      width: 100%;
+      background: var(--cream);
+      border-radius: var(--radius-lg);
+      padding: 18px;
+      text-align: left;
+      margin-bottom: 20px;
+    }
+    .sc-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 7px 0;
+      font-size: 0.85rem;
+    }
+    .sc-row:not(:last-child) { border-bottom: 1px solid rgba(0,0,0,0.06); }
+    .sc-row .sc-lbl { color: var(--muted); }
+    .sc-row .sc-val { font-weight: 600; }
+    .tip-box {
+      width: 100%;
+      background: rgba(255,171,105,0.15);
+      border-radius: var(--radius);
+      padding: 13px 16px;
+      text-align: left;
+      margin-bottom: 24px;
+    }
+    .tip-title { font-weight: 700; font-size: 0.83rem; margin-bottom: 5px; }
+    .tip-text { font-size: 0.8rem; color: var(--muted); line-height: 1.55; }
+    .btn-stack { display: flex; flex-direction: column; gap: 10px; width: 100%; }
+
+    /* ── MY ORDERS ── */
+    .orders-list { padding: 12px 20px; display: flex; flex-direction: column; gap: 10px; }
+    .order-card {
+      background: white;
+      border-radius: var(--radius-lg);
+      border: 1px solid rgba(0,0,0,0.06);
+      padding: 14px 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+    .oc-top { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+    .oc-emoji { width: 46px; height: 46px; border-radius: 11px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; flex-shrink: 0; }
+    .oc-name { font-weight: 700; font-size: 0.88rem; }
+    .oc-biz { font-size: 0.73rem; color: var(--muted); }
+    .oc-price { font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800; color: var(--teal); font-size: 0.95rem; }
+    .oc-footer { display: flex; align-items: center; justify-content: space-between; }
+    .status-pill {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 0.7rem; font-weight: 700;
+      padding: 3px 9px; border-radius: 1rem;
+    }
+    .status-pill.confirmed { background: rgba(0,109,119,0.1); color: var(--teal); }
+    .status-pill.collected { background: rgba(0,0,0,0.06); color: var(--muted); }
+    .oc-date { font-size: 0.7rem; color: var(--muted); }
+
+    /* ── EMPTY STATE ── */
+    .empty {
+      display: flex; flex-direction: column; align-items: center;
+      text-align: center; padding: 56px 28px; gap: 12px;
+    }
+    .empty-icon { font-size: 3.2rem; }
+    .empty-title { font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 700; font-size: 1.05rem; }
+    .empty-desc { font-size: 0.85rem; color: var(--muted); line-height: 1.55; }
+
+    /* ── PROFILE ── */
+    .profile-top {
+      padding: 28px 20px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      border-bottom: 1px solid var(--cream-dark);
+    }
+    .profile-avatar {
+      width: 72px; height: 72px;
+      background: var(--teal-dark);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 2rem;
+      margin-bottom: 10px;
+    }
+    .profile-name { font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800; font-size: 1.2rem; }
+    .profile-email { font-size: 0.82rem; color: var(--muted); margin-top: 2px; }
+    .profile-stats { display: flex; gap: 0; margin-top: 18px; width: 100%; border: 1px solid var(--cream-dark); border-radius: var(--radius); overflow: hidden; }
+    .ps-item { flex: 1; text-align: center; padding: 12px 8px; }
+    .ps-item + .ps-item { border-left: 1px solid var(--cream-dark); }
+    .ps-val { font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800; font-size: 1.25rem; color: var(--teal); }
+    .ps-lbl { font-size: 0.65rem; color: var(--muted); }
+    .profile-list { padding: 10px 12px; }
+    .profile-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 10px; cursor: pointer; border-radius: var(--radius);
+      transition: background 0.15s;
+    }
+    .profile-item:hover { background: var(--cream); }
+    .pi-icon { width: 38px; height: 38px; background: var(--cream); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0; }
+    .pi-text { flex: 1; }
+    .pi-label { font-weight: 600; font-size: 0.87rem; }
+    .pi-sub { font-size: 0.72rem; color: var(--muted); }
+    .pi-right { color: var(--muted); font-size: 0.75rem; }
+
+    /* ── BIZ VIEWS ── */
+    .biz-hero {
+      background: var(--teal-dark);
+      padding: 22px 20px;
+      color: white;
+    }
+    .biz-tag { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--saffron); margin-bottom: 4px; }
+    .biz-name { font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800; font-size: 1.3rem; }
+    .biz-sub { font-size: 0.8rem; color: rgba(255,255,255,0.6); margin-top: 3px; }
+
+    .biz-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 14px 20px; }
+    .biz-stat {
+      background: white;
+      border-radius: var(--radius);
+      padding: 14px;
+      border: 1px solid rgba(0,0,0,0.06);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+    }
+    .biz-stat-val { font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800; font-size: 1.5rem; color: var(--teal-dark); }
+    .biz-stat-lbl { font-size: 0.72rem; color: var(--muted); margin-top: 1px; }
+
+    .biz-actions { padding: 0 20px 14px; display: flex; gap: 10px; }
+    .biz-actions .btn-primary, .biz-actions .btn-secondary { flex: 1; font-size: 0.85rem; padding: 12px 14px; }
+
+    .biz-sec-title {
+      font-size: 0.72rem; font-weight: 700;
+      color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em;
+      padding: 14px 20px 8px;
+    }
+
+    .biz-listing-card {
+      background: white;
+      border-radius: var(--radius);
+      border: 1px solid rgba(0,0,0,0.06);
+      margin: 0 20px 10px;
+      padding: 13px 15px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+    }
+    .blc-top { display: flex; align-items: center; gap: 10px; margin-bottom: 9px; }
+    .blc-emoji { width: 42px; height: 42px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; flex-shrink: 0; }
+    .blc-name { font-weight: 700; font-size: 0.87rem; flex: 1; }
+    .blc-price { font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800; color: var(--teal); font-size: 0.95rem; }
+    .blc-meta { font-size: 0.72rem; color: var(--muted); }
+    .blc-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+    .blc-tag {
+      background: var(--cream); padding: 3px 9px; border-radius: 1rem;
+      font-size: 0.68rem; font-weight: 600; color: var(--muted);
+    }
+    .blc-tag.sold { background: rgba(0,109,119,0.1); color: var(--teal); }
+    .blc-tag.rem  { background: rgba(244,162,97,0.2); color: var(--saffron-mid); }
+    .blc-tag.del-btn {
+      background: rgba(231,111,81,0.1); color: var(--terra);
+      cursor: pointer;
+    }
+    .blc-tag.del-btn:hover { background: rgba(231,111,81,0.2); }
+
+    .biz-order-card {
+      background: white;
+      border-radius: var(--radius);
+      border: 1px solid rgba(0,0,0,0.06);
+      margin: 0 20px 10px;
+      padding: 15px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+    }
+    .boc-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+    .boc-id { font-size: 0.68rem; color: var(--muted); font-weight: 600; font-family: monospace; }
+    .boc-name { font-weight: 700; font-size: 0.88rem; margin-top: 2px; }
+    .boc-detail { font-size: 0.78rem; color: var(--muted); line-height: 1.55; }
+    .boc-actions { display: flex; gap: 8px; margin-top: 10px; }
+    .btn-sm {
+      flex: 1; padding: 8px 12px; border-radius: 10px;
+      border: none; font-family: 'Inter', sans-serif;
+      font-size: 0.78rem; font-weight: 600; cursor: pointer; transition: all 0.15s;
+    }
+    .btn-sm.primary { background: var(--teal); color: white; }
+    .btn-sm.primary:hover { background: var(--teal-dark); }
+    .btn-sm.outline { background: white; color: var(--muted); border: 1.5px solid var(--cream-dark); }
+    .btn-sm.outline:hover { background: var(--cream); }
+
+    .new-order-pill { background: rgba(244,162,97,0.2); color: var(--saffron-mid); }
+
+    /* ── TOAST ── */
+    #toast {
+      position: fixed;
+      bottom: 90px;
+      left: 50%;
+      transform: translateX(-50%) translateY(8px);
+      background: var(--dark);
+      color: white;
+      padding: 11px 20px;
+      border-radius: 2rem;
+      font-size: 0.83rem;
+      font-weight: 500;
+      opacity: 0;
+      transition: opacity 0.25s, transform 0.25s;
+      z-index: 200;
+      white-space: nowrap;
+      pointer-events: none;
+      max-width: 340px;
+      text-align: center;
+    }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* ── GRID FORM ── */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+    /* ── ANIMATIONS ── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .fade-up { animation: fadeUp 0.22s ease; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div id="header"></div>
+  <div id="content"></div>
+  <div id="tab-bar"></div>
+</div>
+<div id="toast"></div>
+
+<script>
+// ══════════════════════════════
+//  STATE
+// ══════════════════════════════
+const S = {
+  view: 'home',
+  filter: 'all',
+  search: '',
+  city: localStorage.getItem('rb_city') || 'Mumbai',
+  listingId: null,
+  qty: 1,
+  bizMode: false,
+  order: null,
+  user: JSON.parse(localStorage.getItem('rb_user') || 'null') || { name: '', phone: '', email: '' },
+};
+
+// ══════════════════════════════
+//  SEED DATA
+// ══════════════════════════════
+const SEED = [
+  {
+    id: 'l1', bizId: 'b1', bizName: 'The Bombay Bakehouse', bizType: 'Artisan Bakery',
+    emoji: '🥐', cat: 'bakery', name: 'Surprise Pastry Bag',
+    desc: 'End-of-day mix of croissants, muffins, banana bread & assorted rolls. Varies daily — always a delight.',
+    contents: ['2–3 Croissants', '1–2 Muffins', 'Banana bread slice', 'Assorted rolls', 'Occasional cake slice'],
+    orig: 380, price: 149, until: '21:00', window: '7:30 PM – 9:00 PM',
+    qty: 5, rem: 3, city: 'Mumbai', area: 'Bandra West', rating: 4.8, reviews: 124,
+  },
+  {
+    id: 'l2', bizId: 'b2', bizName: 'Spice Garden', bizType: 'Indian Restaurant',
+    emoji: '🍱', cat: 'restaurant', name: 'Chef\'s Surprise Thali',
+    desc: 'Chef\'s selection of the day\'s preparations — dal, sabzi, rice, roti & dessert. Restaurant quality at rescue prices.',
+    contents: ['Dal of the day', '2 Sabzis', 'Rice / Biryani', '3 Rotis / Naan', 'Dessert (varies)'],
+    orig: 450, price: 179, until: '22:30', window: '9:30 PM – 10:30 PM',
+    qty: 8, rem: 5, city: 'Mumbai', area: 'Andheri East', rating: 4.6, reviews: 89,
+  },
+  {
+    id: 'l3', bizId: 'b3', bizName: 'Café Piccolo', bizType: 'European Café',
+    emoji: '☕', cat: 'cafe', name: 'Café Closing Basket',
+    desc: 'Whatever was made fresh today and didn\'t sell — sandwiches, quiches, muffins, and pastries.',
+    contents: ['2 Sandwiches', '1 Quiche slice', '2 Pastries', 'Brownie / cookie', 'Occasional bread loaf'],
+    orig: 520, price: 199, until: '20:00', window: '6:30 PM – 8:00 PM',
+    qty: 4, rem: 2, city: 'Mumbai', area: 'Colaba', rating: 4.9, reviews: 203,
+  },
+  {
+    id: 'l4', bizId: 'b4', bizName: 'Green Bowl', bizType: 'Health Food Kitchen',
+    emoji: '🥗', cat: 'restaurant', name: 'Wellness Rescue Bowl',
+    desc: 'End-of-day healthy meals — grain bowls, wraps, and salads that are fresh and delicious.',
+    contents: ['Grain bowl / wrap', 'Salad portion', 'Protein add-on', 'Dressing & sides', 'Fresh juice (occasional)'],
+    orig: 410, price: 159, until: '21:30', window: '8:00 PM – 9:30 PM',
+    qty: 6, rem: 6, city: 'Mumbai', area: 'Powai', rating: 4.7, reviews: 67,
+  },
+  {
+    id: 'l5', bizId: 'b5', bizName: 'Mithai Wala', bizType: 'Sweet Shop',
+    emoji: '🍮', cat: 'bakery', name: 'Mithai Mix Box',
+    desc: 'Fresh sweets from today\'s batch — ladoos, barfi, halwa and seasonal specialties.',
+    contents: ['3–4 Ladoos', 'Barfi pieces', 'Halwa portion', 'Seasonal special', 'Sometimes gulab jamun!'],
+    orig: 350, price: 129, until: '20:30', window: '7:00 PM – 8:30 PM',
+    qty: 10, rem: 7, city: 'Mumbai', area: 'Dadar', rating: 4.5, reviews: 312,
+  },
+  {
+    id: 'l6', bizId: 'b6', bizName: 'The Pizza Republic', bizType: 'Pizza Restaurant',
+    emoji: '🍕', cat: 'restaurant', name: 'Late Night Slice Pack',
+    desc: 'Unsold slices from various pizzas of the day — margherita, pepperoni, veg supreme and more.',
+    contents: ['3–4 Pizza slices', 'Garlic bread', 'Dip sauces', 'Occasional pasta'],
+    orig: 480, price: 189, until: '23:00', window: '10:00 PM – 11:00 PM',
+    qty: 6, rem: 4, city: 'Mumbai', area: 'Lower Parel', rating: 4.4, reviews: 156,
+  },
+];
+
+const BIZ = { id: 'b1', name: 'The Bombay Bakehouse', type: 'Artisan Bakery', area: 'Bandra West, Mumbai' };
+
+// ══════════════════════════════
+//  PERSISTENCE
+// ══════════════════════════════
+function getL()  { return JSON.parse(localStorage.getItem('rb_l')  || 'null') || [...SEED]; }
+function setL(v) { localStorage.setItem('rb_l', JSON.stringify(v)); }
+function getO()  { return JSON.parse(localStorage.getItem('rb_o')  || '[]'); }
+function setO(v) { localStorage.setItem('rb_o', JSON.stringify(v)); }
+function getBizO()  { return JSON.parse(localStorage.getItem('rb_bo') || '[]'); }
+function setBizO(v) { localStorage.setItem('rb_bo', JSON.stringify(v)); }
+
+// ══════════════════════════════
+//  HELPERS
+// ══════════════════════════════
+const fp   = p => '₹' + p;
+const pct   = (o, p) => Math.round(((o - p) / o) * 100) + '% off';
+const save  = (o, p) => '₹' + (o - p) + ' saved';
+const uid   = () => 'o_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+const catCls = c => ({ bakery: 'bakery', restaurant: 'restaurant', cafe: 'cafe', grocery: 'grocery' }[c] || 'restaurant');
+
+function timeAgo(ts) {
+  const m = Math.floor((Date.now() - ts) / 60000);
+  if (m < 1)  return 'Just now';
+  if (m < 60) return m + 'm ago';
+  return Math.floor(m / 60) + 'h ago';
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+function fmtTime(t) {
+  if (!t) return '';
+  const [h, m] = t.split(':').map(Number);
+  return `${h % 12 || 12}:${String(m).padStart(2,'0')} ${h >= 12 ? 'PM' : 'AM'}`;
+}
+
+// ══════════════════════════════
+//  ROUTER
+// ══════════════════════════════
+function go(view, data = {}) {
+  Object.assign(S, data, { view });
+  render();
+  document.getElementById('content').scrollTop = 0;
+}
+
+// ══════════════════════════════
+//  RENDER ORCHESTRATOR
+// ══════════════════════════════
+function render() {
+  renderHeader();
+  renderContent();
+  renderTabBar();
+}
+
+// ── Header ──────────────────
+function renderHeader() {
+  const el = document.getElementById('header');
+  const backViews = { detail: 'home', checkout: 'detail', newlisting: 'bizdash', bizorders: 'bizdash' };
+  const titles = { detail: 'Bag Details', checkout: 'Confirm Order', newlisting: 'Post a Listing', bizorders: 'Incoming Orders', orders: 'My Orders', profile: 'My Profile', bizdash: 'Partner Dashboard' };
+
+  if (S.view === 'success') { el.innerHTML = ''; return; }
+
+  if (backViews[S.view]) {
+    const dest = backViews[S.view];
+    el.innerHTML = `
+      <div class="header-main">
+        <div class="back-btn" onclick="go('${dest}')">Back</div>
+        <div class="header-title">${titles[S.view]}</div>
+        <div style="width:56px"></div>
+      </div>`;
+    return;
+  }
+
+  if (S.view === 'bizdash') {
+    el.innerHTML = `
+      <div class="header-main">
+        <div class="logo"><span class="logo-dot"></span>RescueBite</div>
+        <button class="icon-btn" onclick="exitBiz()" title="Exit partner mode">🚪</button>
+      </div>`;
+    return;
+  }
+
+  const orders  = getO();
+  const active  = orders.filter(o => o.status === 'confirmed').length;
+  el.innerHTML = `
+    <div class="header-main">
+      <div class="logo" onclick="go('home')"><span class="logo-dot"></span>RescueBite</div>
+      <div class="header-right">
+        <button class="icon-btn" onclick="go('orders')" title="My orders">
+          🧺${active > 0 ? `<span class="badge">${active}</span>` : ''}
+        </button>
+        <button class="icon-btn" onclick="go('profile')" title="Profile">👤</button>
+      </div>
+    </div>
+    ${S.view === 'home' ? `
+    <div class="location-bar" onclick="cycleCity()">
+      <span>📍</span>
+      <span class="loc-text">${S.city}</span>
+      <span class="loc-arrow">▾</span>
+    </div>` : ''}`;
+}
+
+// ── Tab bar ──────────────────
+function renderTabBar() {
+  const el = document.getElementById('tab-bar');
+  if (['success', 'checkout', 'bizdash', 'newlisting', 'bizorders'].includes(S.view)) { el.innerHTML = ''; return; }
+
+  const tabs = [
+    { id: 'home',    icon: '🏠', label: 'Browse'  },
+    { id: 'orders',  icon: '🧺', label: 'Orders'  },
+    { id: 'profile', icon: '👤', label: 'Profile' },
+  ];
+  el.innerHTML = tabs.map(t => `
+    <div class="tab ${(S.view === t.id || (S.view === 'detail' && t.id === 'home')) ? 'active' : ''}" onclick="go('${t.id}')">
+      <span class="tab-icon">${t.icon}</span>
+      <span class="tab-label">${t.label}</span>
+    </div>`).join('');
+}
+
+// ── Content ──────────────────
+function renderContent() {
+  const el = document.getElementById('content');
+  el.classList.remove('fade-up');
+  void el.offsetWidth;
+  el.classList.add('fade-up');
+
+  const map = { home: vHome, detail: vDetail, checkout: vCheckout, success: vSuccess, orders: vOrders, profile: vProfile, bizdash: vBizDash, newlisting: vNewListing, bizorders: vBizOrders };
+  el.innerHTML = (map[S.view] || vHome)();
+  bindEvents();
+}
+
+// ══════════════════════════════
+//  VIEW: HOME
+// ══════════════════════════════
+function vHome() {
+  const all = getL().filter(l => l.city === S.city);
+  const shown = all.filter(l => {
+    const catOk    = S.filter === 'all' || l.cat === S.filter;
+    const searchOk = !S.search || l.name.toLowerCase().includes(S.search.toLowerCase()) || l.bizName.toLowerCase().includes(S.search.toLowerCase());
+    return catOk && searchOk;
+  });
+
+  const orders = getO();
+  const mSaved  = orders.reduce((s, o) => s + (o.orig - o.price) * o.qty, 0);
+  const mResc   = orders.reduce((s, o) => s + o.qty, 0);
+
+  const cats = [
+    { id: 'all', icon: '🌟', label: 'All' },
+    { id: 'bakery', icon: '🥐', label: 'Bakery' },
+    { id: 'restaurant', icon: '🍱', label: 'Restaurant' },
+    { id: 'cafe', icon: '☕', label: 'Café' },
+  ];
+
+  return `
+    <div class="search-wrap">
+      <div class="search-inner">
+        <span class="search-icon">🔍</span>
+        <input class="search-input" id="srch" type="text" placeholder="Search bags, restaurants…" value="${S.search}" autocomplete="off">
+      </div>
+    </div>
+
+    <div class="chip-row">
+      ${cats.map(c => `<div class="chip ${S.filter === c.id ? 'active' : ''}" onclick="setFilter('${c.id}')">${c.icon} ${c.label}</div>`).join('')}
+    </div>
+
+    ${mResc > 0 ? `
+    <div class="stats-banner">
+      <div class="sb-item"><div class="sb-val">${mResc}</div><div class="sb-lbl">Meals<br>Rescued</div></div>
+      <div class="sb-item"><div class="sb-val">₹${mSaved}</div><div class="sb-lbl">Money<br>Saved</div></div>
+      <div class="sb-item"><div class="sb-val">${(mResc * 0.8).toFixed(1)}kg</div><div class="sb-lbl">Waste<br>Prevented</div></div>
+    </div>` : ''}
+
+    <div class="sec-header">
+      <h3>Available Now ${shown.length > 0 ? `<span style="color:var(--muted);font-weight:500;font-size:0.82rem">(${shown.length})</span>` : ''}</h3>
+    </div>
+
+    ${shown.length === 0 ? `
+    <div class="empty">
+      <div class="empty-icon">🥲</div>
+      <div class="empty-title">No bags found</div>
+      <div class="empty-desc">Try a different filter or check back soon — restaurants add new listings throughout the day.</div>
+    </div>` : `
+    <div class="listings">
+      ${shown.map(listingCard).join('')}
+    </div>`}
+
+    <div class="mode-toggle" onclick="enterBiz()">
+      <div>
+        <div class="mt-label">🏪 Partner Portal</div>
+        <div class="mt-sub">List your surplus food & manage orders</div>
+      </div>
+      <span style="color:var(--teal);font-weight:700">→</span>
+    </div>
+    <div style="height:16px"></div>`;
+}
+
+function listingCard(l) {
+  const urgent = l.rem <= 2;
+  const remText = l.rem <= 2 ? `🔥 Only ${l.rem} left!` : `${l.rem} left`;
+  return `
+    <div class="listing-card" onclick="go('detail',{listingId:'${l.id}'})">
+      <div class="card-banner ${catCls(l.cat)}">
+        ${l.emoji}
+        <div class="cb-badge">${pct(l.orig, l.price)}</div>
+        <div class="cb-timer">⏱ ${l.until}</div>
+      </div>
+      <div class="card-body">
+        <div class="card-biz">📍 ${l.bizName} · ${l.area}</div>
+        <div class="card-name">${l.name}</div>
+        <div class="card-desc">${l.desc.length > 85 ? l.desc.slice(0,85) + '…' : l.desc}</div>
+        <div class="card-footer">
+          <div>
+            <span class="price-now">${fp(l.price)}</span>
+            <span class="price-was">${fp(l.orig)}</span>
+          </div>
+          <div class="card-rem ${urgent ? 'urgent' : 'ok'}">${remText}</div>
+        </div>
+      </div>
+    </div>`;
+}
+
+// ══════════════════════════════
+//  VIEW: DETAIL
+// ══════════════════════════════
+function vDetail() {
+  const l = getL().find(x => x.id === S.listingId);
+  if (!l) return `<div class="empty"><div class="empty-title">Not found</div></div>`;
+
+  return `
+    <div class="detail-hero ${catCls(l.cat)}" style="font-size:5rem">
+      ${l.emoji}
+      <div class="cb-badge" style="position:absolute;top:14px;right:14px">${pct(l.orig, l.price)}</div>
+    </div>
+    <div class="detail-content">
+      <div class="detail-biz-row">
+        <div class="detail-biz-name">${l.bizName}</div>
+        <div class="rating-pill">⭐ ${l.rating} (${l.reviews})</div>
+      </div>
+      <div class="detail-loc">📍 ${l.area}, ${l.city} · ${l.bizType}</div>
+      <div class="detail-title">${l.name}</div>
+      <div class="detail-desc">${l.desc}</div>
+      <div class="divider"></div>
+      <div class="info-row">
+        <div class="info-icon">📦</div>
+        <div>
+          <div class="info-label">What's inside</div>
+          <ul class="contents-list">${(l.contents || []).map(c => `<li>${c}</li>`).join('')}</ul>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="info-row">
+        <div class="info-icon">🕐</div>
+        <div>
+          <div class="info-label">Pickup window</div>
+          <div class="info-val">${l.window}</div>
+        </div>
+      </div>
+      <div class="info-row">
+        <div class="info-icon">📍</div>
+        <div>
+          <div class="info-label">Location</div>
+          <div class="info-val">${l.area}, ${l.city}</div>
+        </div>
+      </div>
+      <div class="info-row">
+        <div class="info-icon">🧺</div>
+        <div>
+          <div class="info-label">Bags remaining</div>
+          <div class="info-val" style="color:${l.rem <= 2 ? 'var(--terra)' : 'var(--teal)'}">${l.rem} of ${l.qty} left</div>
+        </div>
+      </div>
+      <div class="price-box">
+        <div class="pb-row"><span class="pb-lbl">Original price</span><span style="text-decoration:line-through;color:var(--muted)">${fp(l.orig)}</span></div>
+        <div class="pb-row"><span class="pb-lbl">Rescue price</span><span style="color:var(--teal);font-weight:600">${fp(l.price)}</span></div>
+        <div class="pb-row total">
+          <span class="pb-lbl">You save<span class="save-chip">${save(l.orig, l.price)}</span></span>
+          <span class="pb-val">${fp(l.price)}</span>
+        </div>
+      </div>
+    </div>
+    <div style="height:80px"></div>
+    <div class="sticky-cta">
+      ${l.rem > 0
+        ? `<button class="btn-primary" onclick="go('checkout',{listingId:'${l.id}',qty:1})">Reserve Bag — ${fp(l.price)} →</button>`
+        : `<button class="btn-primary" disabled>Sold Out</button>`}
+    </div>`;
+}
+
+// ══════════════════════════════
+//  VIEW: CHECKOUT
+// ══════════════════════════════
+function vCheckout() {
+  const l = getL().find(x => x.id === S.listingId);
+  if (!l) return '';
+  const qty   = S.qty || 1;
+  const total = l.price * qty;
+
+  return `
+    <div style="padding-top:8px;padding-bottom:20px">
+      <div class="co-section">
+        <div class="co-section-title">Your Order</div>
+        <div class="order-preview">
+          <div class="op-emoji ${catCls(l.cat)}">${l.emoji}</div>
+          <div class="op-info" style="flex:1">
+            <div class="op-name">${l.name}</div>
+            <div class="op-biz">${l.bizName}</div>
+          </div>
+          <div class="op-price">${fp(total)}</div>
+        </div>
+        <div class="qty-row">
+          <div class="qty-lbl">Quantity</div>
+          <div class="qty-ctrl">
+            <button class="qty-btn" onclick="changeQty(-1)">−</button>
+            <span class="qty-val" id="qty-val">${qty}</span>
+            <button class="qty-btn" onclick="changeQty(1)">+</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="co-section">
+        <div class="co-section-title">Pickup Details</div>
+        <div class="info-row" style="margin-bottom:0">
+          <div class="info-icon">🕐</div>
+          <div><div class="info-label">Pickup window</div><div class="info-val">${l.window}</div></div>
+        </div>
+        <div class="info-row" style="margin-top:10px;margin-bottom:0">
+          <div class="info-icon">📍</div>
+          <div><div class="info-label">Location</div><div class="info-val">${l.bizName}, ${l.area}</div></div>
+        </div>
+      </div>
+
+      <div class="co-section">
+        <div class="co-section-title">Your Details</div>
+        <div class="form-field">
+          <label class="form-label">Name</label>
+          <input class="form-input" id="co-name" type="text" placeholder="Your name" value="${S.user.name}" autocomplete="name">
+        </div>
+        <div class="form-field" style="margin-bottom:0">
+          <label class="form-label">Phone</label>
+          <input class="form-input" id="co-phone" type="tel" placeholder="+91 98765 43210" value="${S.user.phone}" autocomplete="tel">
+        </div>
+      </div>
+
+      <div class="co-section">
+        <div class="co-section-title">Price Summary</div>
+        <div class="price-summary-row">
+          <span class="ps-lbl">Rescue price × ${qty}</span>
+          <span>${fp(l.price)} × ${qty}</span>
+        </div>
+        <div class="price-summary-row">
+          <span class="ps-lbl">You save</span>
+          <span style="color:var(--teal);font-weight:600">${fp((l.orig - l.price) * qty)}</span>
+        </div>
+        <div class="price-summary-row total-row">
+          <span>Total</span>
+          <span class="ps-val" id="co-total">${fp(total)}</span>
+        </div>
+      </div>
+
+      <div style="padding:0 20px">
+        <button class="btn-primary" id="confirm-btn" onclick="confirmOrder('${l.id}')">
+          Confirm Reservation — ${fp(total)}
+        </button>
+        <p style="text-align:center;font-size:0.73rem;color:var(--muted);margin-top:8px">Pay at pickup · No advance payment required</p>
+      </div>
+    </div>`;
+}
+
+// ══════════════════════════════
+//  VIEW: SUCCESS
+// ══════════════════════════════
+function vSuccess() {
+  const o = S.order;
+  if (!o) { go('home'); return ''; }
+  return `
+    <div class="success-view">
+      <div class="success-circle">✅</div>
+      <div class="success-title">Bag Reserved!</div>
+      <div class="success-sub">Your rescue bag is confirmed. Head to the pickup spot at the right time and show your order ID.</div>
+      <div class="success-card">
+        <div class="sc-row"><span class="sc-lbl">Order ID</span><span class="sc-val" style="font-family:monospace;font-size:0.82rem">${o.id}</span></div>
+        <div class="sc-row"><span class="sc-lbl">Bag</span><span class="sc-val">${o.name}</span></div>
+        <div class="sc-row"><span class="sc-lbl">From</span><span class="sc-val">${o.bizName}</span></div>
+        <div class="sc-row"><span class="sc-lbl">Pickup</span><span class="sc-val">${o.window}</span></div>
+        <div class="sc-row"><span class="sc-lbl">Qty</span><span class="sc-val">${o.qty} bag${o.qty > 1 ? 's' : ''}</span></div>
+        <div class="sc-row"><span class="sc-lbl">Amount due</span><span class="sc-val" style="color:var(--teal)">${fp(o.total)} (pay at pickup)</span></div>
+      </div>
+      <div class="tip-box">
+        <div class="tip-title">💡 What to bring</div>
+        <div class="tip-text">Show your order ID at the counter. Bring cash or UPI. A reusable bag is appreciated!</div>
+      </div>
+      <div class="btn-stack">
+        <button class="btn-primary" onclick="go('home')">Browse More Bags</button>
+        <button class="btn-secondary" onclick="go('orders')">View My Orders</button>
+      </div>
+    </div>`;
+}
+
+// ══════════════════════════════
+//  VIEW: MY ORDERS
+// ══════════════════════════════
+function vOrders() {
+  const orders = getO().slice().reverse();
+  if (orders.length === 0) return `
+    <div class="empty">
+      <div class="empty-icon">🧺</div>
+      <div class="empty-title">No orders yet</div>
+      <div class="empty-desc">You haven't rescued any meals yet. Browse available bags and make your first rescue!</div>
+      <div style="margin-top:8px;width:100%;padding:0 28px"><button class="btn-primary" onclick="go('home')">Browse Bags →</button></div>
+    </div>`;
+
+  return `
+    <div class="orders-list">
+      ${orders.map(o => `
+        <div class="order-card">
+          <div class="oc-top">
+            <div class="oc-emoji ${catCls(o.cat)}">${o.emoji}</div>
+            <div style="flex:1">
+              <div class="oc-name">${o.name}</div>
+              <div class="oc-biz">${o.bizName} · ${o.area}</div>
+            </div>
+            <div class="oc-price">${fp(o.total)}</div>
+          </div>
+          <div class="oc-footer">
+            <div class="status-pill confirmed">✓ Confirmed</div>
+            <div class="oc-date">${timeAgo(o.at)} · Pickup ${o.window}</div>
+          </div>
+        </div>`).join('')}
+    </div>`;
+}
+
+// ══════════════════════════════
+//  VIEW: PROFILE
+// ══════════════════════════════
+function vProfile() {
+  const orders = getO();
+  const saved  = orders.reduce((s, o) => s + (o.orig - o.price) * o.qty, 0);
+  const meals  = orders.reduce((s, o) => s + o.qty, 0);
+  const u = S.user;
+  const CITIES = ['Mumbai', 'Delhi', 'Bengaluru', 'Chennai', 'Pune', 'Hyderabad'];
+
+  return `
+    <div class="profile-top">
+      <div class="profile-avatar">👤</div>
+      <div class="profile-name">${u.name || 'Food Rescuer'}</div>
+      <div class="profile-email">${u.email || 'Tap below to set up your profile'}</div>
+      <div class="profile-stats">
+        <div class="ps-item"><div class="ps-val">${meals}</div><div class="ps-lbl">Meals rescued</div></div>
+        <div class="ps-item"><div class="ps-val">₹${saved}</div><div class="ps-lbl">Money saved</div></div>
+        <div class="ps-item"><div class="ps-val">${(meals * 0.8).toFixed(1)}kg</div><div class="ps-lbl">Waste saved</div></div>
+      </div>
+    </div>
+    <div class="profile-list">
+      <div class="profile-item" onclick="editProfile()">
+        <div class="pi-icon">✏️</div>
+        <div class="pi-text"><div class="pi-label">Edit Profile</div><div class="pi-sub">Name, phone, email</div></div>
+        <div class="pi-right">›</div>
+      </div>
+      <div class="profile-item">
+        <div class="pi-icon">📍</div>
+        <div class="pi-text"><div class="pi-label">City</div><div class="pi-sub">${S.city}</div></div>
+        <select onchange="setCity(this.value)" style="border:none;background:transparent;font-size:0.8rem;color:var(--teal);font-weight:600;cursor:pointer;outline:none">
+          ${CITIES.map(c => `<option value="${c}" ${c === S.city ? 'selected' : ''}>${c}</option>`).join('')}
+        </select>
+      </div>
+      <div class="profile-item" onclick="go('orders')">
+        <div class="pi-icon">🧺</div>
+        <div class="pi-text"><div class="pi-label">My Orders</div><div class="pi-sub">${orders.length} order${orders.length !== 1 ? 's' : ''}</div></div>
+        <div class="pi-right">›</div>
+      </div>
+      <div class="profile-item" onclick="enterBiz()">
+        <div class="pi-icon">🏪</div>
+        <div class="pi-text"><div class="pi-label">Partner Portal</div><div class="pi-sub">List surplus food & manage orders</div></div>
+        <div class="pi-right">›</div>
+      </div>
+      <div class="profile-item" style="cursor:default">
+        <div class="pi-icon">💚</div>
+        <div class="pi-text"><div class="pi-label">About RescueBite</div><div class="pi-sub">Fighting food waste, one meal at a time</div></div>
+      </div>
+      ${u.name ? `
+      <div style="padding:12px 0 8px">
+        <button class="btn-danger" onclick="resetApp()">Reset App Data</button>
+      </div>` : ''}
+    </div>`;
+}
+
+// ══════════════════════════════
+//  VIEW: BIZ DASHBOARD
+// ══════════════════════════════
+function vBizDash() {
+  const listings  = getL().filter(l => l.bizId === BIZ.id);
+  const bizOrders = getBizO();
+  const newCount  = bizOrders.filter(o => o.status === 'new').length;
+  const totalSold = listings.reduce((s, l) => s + (l.qty - l.rem), 0);
+  const revenue   = bizOrders.reduce((s, o) => s + o.total, 0);
+
+  return `
+    <div class="biz-hero">
+      <div class="biz-tag">Partner Dashboard</div>
+      <div class="biz-name">${BIZ.name}</div>
+      <div class="biz-sub">📍 ${BIZ.area} · ${BIZ.type}</div>
+    </div>
+    <div class="biz-stats">
+      <div class="biz-stat"><div class="biz-stat-val">${listings.length}</div><div class="biz-stat-lbl">Active Listings</div></div>
+      <div class="biz-stat"><div class="biz-stat-val">${totalSold}</div><div class="biz-stat-lbl">Bags Sold</div></div>
+      <div class="biz-stat"><div class="biz-stat-val">₹${revenue}</div><div class="biz-stat-lbl">Revenue</div></div>
+      <div class="biz-stat"><div class="biz-stat-val">${newCount}</div><div class="biz-stat-lbl">New Orders</div></div>
+    </div>
+    <div class="biz-actions">
+      <button class="btn-primary" onclick="go('newlisting')">+ Post Listing</button>
+      <button class="btn-secondary" onclick="go('bizorders')">${newCount > 0 ? '🔔 ' : ''}Orders${newCount > 0 ? ' (' + newCount + ')' : ''}</button>
+    </div>
+
+    ${listings.length > 0 ? `
+    <div class="biz-sec-title">Your Listings</div>
+    ${listings.map(l => `
+      <div class="biz-listing-card">
+        <div class="blc-top">
+          <div class="blc-emoji ${catCls(l.cat)}">${l.emoji}</div>
+          <div style="flex:1">
+            <div class="blc-name">${l.name}</div>
+            <div class="blc-meta">Pickup until ${l.until}</div>
+          </div>
+          <div class="blc-price">${fp(l.price)}</div>
+        </div>
+        <div class="blc-tags">
+          <span class="blc-tag sold">✓ ${l.qty - l.rem} sold</span>
+          <span class="blc-tag rem">${l.rem} remaining</span>
+          <span class="blc-tag">${pct(l.orig, l.price)}</span>
+          <span class="blc-tag del-btn" onclick="deleteListing('${l.id}')">🗑 Remove</span>
+        </div>
+      </div>`).join('')}
+    ` : `
+    <div class="empty" style="padding:36px 28px">
+      <div class="empty-icon">📦</div>
+      <div class="empty-title">No listings yet</div>
+      <div class="empty-desc">Post your first surplus listing and start recovering value from unsold food.</div>
+    </div>`}
+    <div style="height:20px"></div>`;
+}
+
+// ══════════════════════════════
+//  VIEW: BIZ ORDERS
+// ══════════════════════════════
+function vBizOrders() {
+  const orders = getBizO().slice().reverse();
+  if (orders.length === 0) return `
+    <div class="empty">
+      <div class="empty-icon">📋</div>
+      <div class="empty-title">No orders yet</div>
+      <div class="empty-desc">Customer reservations will appear here once your listings receive orders.</div>
+      <div style="margin-top:8px;width:100%;padding:0 28px"><button class="btn-primary" onclick="go('bizdash')">Back to Dashboard</button></div>
+    </div>`;
+
+  return `
+    <div style="padding:14px 0">
+      ${orders.map(o => `
+        <div class="biz-order-card">
+          <div class="boc-top">
+            <div>
+              <div class="boc-id">#${o.id.slice(-6).toUpperCase()}</div>
+              <div class="boc-name">${o.name}</div>
+            </div>
+            <div class="status-pill ${o.status === 'new' ? 'new-order-pill' : 'collected'}">${o.status === 'new' ? '🔔 New' : '✓ Done'}</div>
+          </div>
+          <div class="boc-detail">
+            👤 ${o.customer || 'Customer'} &nbsp;·&nbsp; 📞 ${o.phone || 'N/A'}<br>
+            📦 ${o.qty} bag${o.qty > 1 ? 's' : ''} &nbsp;·&nbsp; Pickup ${o.window}<br>
+            💰 ${fp(o.total)} to collect
+          </div>
+          ${o.status === 'new' ? `
+          <div class="boc-actions">
+            <button class="btn-sm primary" onclick="markDone('${o.id}')">Mark as Collected ✓</button>
+            <button class="btn-sm outline" onclick="go('bizdash')">Dashboard</button>
+          </div>` : ''}
+        </div>`).join('')}
+    </div>`;
+}
+
+// ══════════════════════════════
+//  VIEW: NEW LISTING
+// ══════════════════════════════
+function vNewListing() {
+  return `
+    <div style="padding:16px 20px 100px">
+      <div class="co-section">
+        <div class="co-section-title">Bag Details</div>
+        <div class="form-field">
+          <label class="form-label">Bag Name</label>
+          <input class="form-input" id="nl-name" placeholder="e.g. Surprise Pastry Bag">
+        </div>
+        <div class="form-field">
+          <label class="form-label">Category</label>
+          <select class="form-input" id="nl-cat">
+            <option value="bakery">🥐 Bakery</option>
+            <option value="restaurant">🍱 Restaurant</option>
+            <option value="cafe">☕ Café</option>
+            <option value="grocery">🛒 Grocery</option>
+          </select>
+        </div>
+        <div class="form-field" style="margin-bottom:0">
+          <label class="form-label">Description</label>
+          <textarea class="form-input" id="nl-desc" placeholder="What's typically inside? How did it become surplus?"></textarea>
+        </div>
+      </div>
+
+      <div class="co-section">
+        <div class="co-section-title">Pricing</div>
+        <div class="grid-2">
+          <div class="form-field">
+            <label class="form-label">Original Price (₹)</label>
+            <input class="form-input" id="nl-orig" type="number" placeholder="500" min="1">
+          </div>
+          <div class="form-field">
+            <label class="form-label">Rescue Price (₹)</label>
+            <input class="form-input" id="nl-price" type="number" placeholder="199" min="1">
+          </div>
+        </div>
+        <div class="form-field" style="margin-bottom:0">
+          <label class="form-label">Number of Bags Available</label>
+          <input class="form-input" id="nl-qty" type="number" placeholder="5" min="1" max="50">
+        </div>
+      </div>
+
+      <div class="co-section">
+        <div class="co-section-title">Pickup Window</div>
+        <div class="grid-2">
+          <div class="form-field">
+            <label class="form-label">From</label>
+            <input class="form-input" id="nl-from" type="time" value="19:00">
+          </div>
+          <div class="form-field" style="margin-bottom:0">
+            <label class="form-label">Until</label>
+            <input class="form-input" id="nl-until" type="time" value="21:00">
+          </div>
+        </div>
+      </div>
+
+      <button class="btn-primary" onclick="postListing()">🚀 Post Listing</button>
+      <p style="text-align:center;font-size:0.72rem;color:var(--muted);margin-top:8px">Customers nearby will see this immediately</p>
+    </div>`;
+}
+
+// ══════════════════════════════
+//  ACTIONS
+// ══════════════════════════════
+function setFilter(f) { S.filter = f; render(); }
+
+function setCity(c) {
+  S.city = c;
+  localStorage.setItem('rb_city', c);
+  render();
+  showToast('City set to ' + c);
+}
+
+function cycleCity() {
+  const cities = ['Mumbai', 'Delhi', 'Bengaluru', 'Chennai', 'Pune', 'Hyderabad'];
+  setCity(cities[(cities.indexOf(S.city) + 1) % cities.length]);
+}
+
+function enterBiz() { S.bizMode = true; go('bizdash'); }
+function exitBiz()  { S.bizMode = false; go('home'); }
+
+function changeQty(d) {
+  const l = getL().find(x => x.id === S.listingId);
+  S.qty = Math.max(1, Math.min(l ? l.rem : 10, S.qty + d));
+  const qv = document.getElementById('qty-val');
+  if (qv) qv.textContent = S.qty;
+  const cb = document.getElementById('confirm-btn');
+  if (cb && l) cb.textContent = `Confirm Reservation — ₹${l.price * S.qty}`;
+  const ct = document.getElementById('co-total');
+  if (ct && l) ct.textContent = fp(l.price * S.qty);
+}
+
+function confirmOrder(lid) {
+  const name  = document.getElementById('co-name')?.value.trim();
+  const phone = document.getElementById('co-phone')?.value.trim();
+  if (!name || !phone) { showToast('Please fill in your name and phone'); return; }
+
+  const listings = getL();
+  const l = listings.find(x => x.id === lid);
+  if (!l || l.rem < S.qty) { showToast('Not enough bags available'); return; }
+
+  S.user = { ...S.user, name, phone };
+  localStorage.setItem('rb_user', JSON.stringify(S.user));
+
+  l.rem -= S.qty;
+  setL(listings);
+
+  const order = {
+    id: uid(), listingId: lid, bizId: l.bizId,
+    name: l.name, bizName: l.bizName, area: l.area,
+    emoji: l.emoji, cat: l.cat, window: l.window,
+    qty: S.qty, price: l.price, orig: l.orig,
+    total: l.price * S.qty,
+    customer: name, phone, status: 'confirmed', at: Date.now(),
+  };
+
+  const orders = getO(); orders.push(order); setO(orders);
+  const bizOrders = getBizO(); bizOrders.push({ ...order, status: 'new' }); setBizO(bizOrders);
+
+  S.order = order;
+  go('success');
+}
+
+function postListing() {
+  const name  = document.getElementById('nl-name')?.value.trim();
+  const cat   = document.getElementById('nl-cat')?.value;
+  const desc  = document.getElementById('nl-desc')?.value.trim();
+  const orig  = parseFloat(document.getElementById('nl-orig')?.value);
+  const price = parseFloat(document.getElementById('nl-price')?.value);
+  const qty   = parseInt(document.getElementById('nl-qty')?.value);
+  const from  = document.getElementById('nl-from')?.value;
+  const until = document.getElementById('nl-until')?.value;
+
+  if (!name || !desc || !orig || !price || !qty) { showToast('Please fill in all fields'); return; }
+  if (price >= orig) { showToast('Rescue price must be less than original price'); return; }
+  if (qty < 1)       { showToast('Quantity must be at least 1'); return; }
+
+  const emojiMap = { bakery: '🥐', restaurant: '🍱', cafe: '☕', grocery: '🛒' };
+  const listing = {
+    id: 'l' + Date.now(), bizId: BIZ.id, bizName: BIZ.name, bizType: BIZ.type,
+    emoji: emojiMap[cat] || '🍽️', cat, name, desc,
+    contents: ['Fresh daily items', 'Quality assured', 'Same-day pickup only'],
+    orig, price, until, window: fmtTime(from) + ' – ' + fmtTime(until),
+    qty, rem: qty, city: S.city, area: BIZ.area.split(',')[0], rating: 4.8, reviews: 0,
+  };
+
+  const listings = getL(); listings.push(listing); setL(listings);
+  showToast('Listing posted! Customers can see it now.');
+  go('bizdash');
+}
+
+function deleteListing(id) {
+  if (!confirm('Remove this listing?')) return;
+  const listings = getL().filter(l => l.id !== id);
+  setL(listings);
+  showToast('Listing removed');
+  render();
+}
+
+function markDone(id) {
+  const orders = getBizO();
+  const o = orders.find(x => x.id === id);
+  if (o) o.status = 'done';
+  setBizO(orders);
+  showToast('Marked as collected ✓');
+  render();
+}
+
+function editProfile() {
+  const name  = prompt('Your name:', S.user.name || '');
+  if (name === null) return;
+  const phone = prompt('Phone number:', S.user.phone || '');
+  if (phone === null) return;
+  const email = prompt('Email address:', S.user.email || '');
+  if (email === null) return;
+  S.user = { name: name.trim(), phone: phone.trim(), email: email.trim() };
+  localStorage.setItem('rb_user', JSON.stringify(S.user));
+  showToast('Profile updated!');
+  render();
+}
+
+function resetApp() {
+  if (!confirm('Reset all app data? This cannot be undone.')) return;
+  localStorage.clear();
+  S.user = { name: '', phone: '', email: '' };
+  S.view = 'home'; S.filter = 'all'; S.bizMode = false; S.city = 'Mumbai';
+  render();
+  showToast('App data reset');
+}
+
+// ══════════════════════════════
+//  EVENT BINDING
+// ══════════════════════════════
+function bindEvents() {
+  const srch = document.getElementById('srch');
+  if (!srch) return;
+  srch.addEventListener('input', e => {
+    S.search = e.target.value;
+    clearTimeout(window._st);
+    window._st = setTimeout(() => {
+      const el = document.getElementById('content');
+      const listings = getL().filter(l => l.city === S.city).filter(l => {
+        const catOk    = S.filter === 'all' || l.cat === S.filter;
+        const searchOk = !S.search || l.name.toLowerCase().includes(S.search.toLowerCase()) || l.bizName.toLowerCase().includes(S.search.toLowerCase());
+        return catOk && searchOk;
+      });
+      // Patch just the listings area, preserving search focus
+      const grid = el.querySelector('.listings');
+      const empty = el.querySelector('.empty');
+      const secH = el.querySelector('.sec-header h3');
+      if (secH) secH.innerHTML = `Available Now ${listings.length > 0 ? `<span style="color:var(--muted);font-weight:500;font-size:0.82rem">(${listings.length})</span>` : ''}`;
+      if (listings.length === 0) {
+        if (grid)  grid.innerHTML = '';
+        if (empty) empty.innerHTML = '<div class="empty-icon">🥲</div><div class="empty-title">No bags found</div><div class="empty-desc">Try a different filter or check back soon.</div>';
+        else if (grid) {
+          grid.outerHTML = `<div class="empty"><div class="empty-icon">🥲</div><div class="empty-title">No bags found</div><div class="empty-desc">Try a different filter or check back soon.</div></div>`;
+        }
+      } else {
+        const target = grid || el.querySelector('.empty');
+        if (target) {
+          const div = document.createElement('div');
+          div.className = 'listings';
+          div.innerHTML = listings.map(listingCard).join('');
+          target.replaceWith(div);
+        }
+      }
+    }, 280);
+  });
+}
+
+// ══════════════════════════════
+//  INIT
+// ══════════════════════════════
+window.addEventListener('DOMContentLoaded', () => {
+  if (!localStorage.getItem('rb_l')) setL(SEED);
+  render();
+});
+</script>
+</body>
+</html>
