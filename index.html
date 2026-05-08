@@ -1721,6 +1721,45 @@ function vBizSetup() {
 //  VIEW: NEW LISTING
 // ══════════════════════════════
 function vNewListing() {
+  const biz = getBizProfile();
+
+  // Map business type → allowed listing categories
+  const BIZ_CAT_MAP = {
+    'Artisan Bakery':      ['bakery'],
+    'Sweet Shop':          ['bakery'],
+    'Café':                ['cafe'],
+    'Grocery Store':       ['grocery'],
+    'Indian Restaurant':   ['restaurant'],
+    'Pizza Restaurant':    ['restaurant'],
+    'Health Food Kitchen': ['restaurant'],
+    'Hotel / Banquet':     ['restaurant'],
+    'Cloud Kitchen':       ['restaurant', 'cafe'],
+    'Other':               ['bakery', 'restaurant', 'cafe', 'grocery'],
+  };
+
+  const ALL_CATS = [
+    { value: 'bakery',     label: '🥐 Bakery'     },
+    { value: 'restaurant', label: '🍱 Restaurant'  },
+    { value: 'cafe',       label: '☕ Café'        },
+    { value: 'grocery',    label: '🛒 Grocery'     },
+  ];
+
+  const allowedVals = biz ? (BIZ_CAT_MAP[biz.type] || ALL_CATS.map(c => c.value)) : ALL_CATS.map(c => c.value);
+  const filteredCats = ALL_CATS.filter(c => allowedVals.includes(c.value));
+  const single = filteredCats.length === 1;
+
+  // If only one category matches, show a locked badge; otherwise show a filtered dropdown
+  const catField = single
+    ? `<div style="display:flex;align-items:center;gap:10px;padding:10px 13px;background:var(--cream);border-radius:10px;border:1.5px solid var(--cream-dark)">
+         <span style="font-size:1rem">${filteredCats[0].label.split(' ')[0]}</span>
+         <span style="font-weight:600;font-size:0.88rem;color:var(--dark)">${filteredCats[0].label.split(' ').slice(1).join(' ')}</span>
+         <input type="hidden" id="nl-cat" value="${filteredCats[0].value}">
+         <span style="margin-left:auto;font-size:0.68rem;font-weight:700;color:var(--teal);background:rgba(0,109,119,0.1);padding:2px 8px;border-radius:1rem">Auto</span>
+       </div>`
+    : `<select class="form-input" id="nl-cat">
+         ${filteredCats.map(c => `<option value="${c.value}">${c.label}</option>`).join('')}
+       </select>`;
+
   return `
     <div style="padding:16px 20px 100px">
       <div class="co-section">
@@ -1731,12 +1770,7 @@ function vNewListing() {
         </div>
         <div class="form-field">
           <label class="form-label">Category</label>
-          <select class="form-input" id="nl-cat">
-            <option value="bakery">🥐 Bakery</option>
-            <option value="restaurant">🍱 Restaurant</option>
-            <option value="cafe">☕ Café</option>
-            <option value="grocery">🛒 Grocery</option>
-          </select>
+          ${catField}
         </div>
         <div class="form-field" style="margin-bottom:0">
           <label class="form-label">Description</label>
