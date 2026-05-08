@@ -925,14 +925,13 @@ const S = {
   user: JSON.parse(localStorage.getItem('rb_user') || 'null') || { name: '', phone: '', email: '' },
 };
 
-const BIZ = { id: 'b1', name: 'The Bombay Bakehouse', type: 'Artisan Bakery', area: 'Bandra West, Mumbai' };
-
 // ══════════════════════════════
 //  DATA ACCESS  (from DB cache)
 // ══════════════════════════════
+function getBizProfile() { return JSON.parse(localStorage.getItem('rb_biz') || 'null'); }
 function getL()    { return DB.listings.filter(r => r.city === S.city).map(mapL); }
 function getO()    { return DB.orders.filter(r => r.consumer_id === CID).map(mapO); }
-function getBizO() { return DB.orders.filter(r => r.biz_id === BIZ.id).map(mapO); }
+function getBizO() { const biz = getBizProfile(); if (!biz) return []; return DB.orders.filter(r => r.biz_id === biz.id).map(mapO); }
 
 // ══════════════════════════════
 //  HELPERS
@@ -985,8 +984,8 @@ function render() {
 // ── Header ──────────────────
 function renderHeader() {
   const el = document.getElementById('header');
-  const backViews = { detail: 'home', checkout: 'detail', newlisting: 'bizdash', bizorders: 'bizdash' };
-  const titles = { detail: 'Bag Details', checkout: 'Confirm Order', newlisting: 'Post a Listing', bizorders: 'Incoming Orders', orders: 'My Orders', profile: 'My Profile', bizdash: 'Partner Dashboard' };
+  const backViews = { detail: 'home', checkout: 'detail', newlisting: 'bizdash', bizorders: 'bizdash', bizsetup: 'profile' };
+  const titles = { detail: 'Bag Details', checkout: 'Confirm Order', newlisting: 'Post a Listing', bizorders: 'Incoming Orders', bizsetup: 'Partner Account', orders: 'My Orders', profile: 'My Profile', bizdash: 'Partner Dashboard' };
 
   if (S.view === 'success') { el.innerHTML = ''; return; }
 
@@ -1032,7 +1031,7 @@ function renderHeader() {
 // ── Tab bar ──────────────────
 function renderTabBar() {
   const el = document.getElementById('tab-bar');
-  if (['success', 'checkout', 'bizdash', 'newlisting', 'bizorders'].includes(S.view)) { el.innerHTML = ''; return; }
+  if (['success', 'checkout', 'bizdash', 'newlisting', 'bizorders', 'bizsetup'].includes(S.view)) { el.innerHTML = ''; return; }
 
   const tabs = [
     { id: 'home',    icon: '🏠', label: 'Browse'  },
@@ -1053,7 +1052,7 @@ function renderContent() {
   void el.offsetWidth;
   el.classList.add('fade-up');
 
-  const map = { home: vHome, detail: vDetail, checkout: vCheckout, success: vSuccess, orders: vOrders, profile: vProfile, bizdash: vBizDash, newlisting: vNewListing, bizorders: vBizOrders };
+  const map = { home: vHome, detail: vDetail, checkout: vCheckout, success: vSuccess, orders: vOrders, profile: vProfile, bizdash: vBizDash, newlisting: vNewListing, bizorders: vBizOrders, bizsetup: vBizSetup };
   el.innerHTML = (map[S.view] || vHome)();
   bindEvents();
 }
@@ -1128,8 +1127,8 @@ function vHome() {
 
     <div class="mode-toggle" onclick="enterBiz()">
       <div>
-        <div class="mt-label">🏪 Partner Portal</div>
-        <div class="mt-sub">List your surplus food & manage orders</div>
+        <div class="mt-label">🏪 ${getBizProfile() ? getBizProfile().name : 'Partner Portal'}</div>
+        <div class="mt-sub">${getBizProfile() ? 'Go to partner dashboard' : 'List your surplus food & manage orders'}</div>
       </div>
       <span style="color:var(--teal);font-weight:700">→</span>
     </div>
@@ -1381,10 +1380,12 @@ function vProfile() {
   const saved  = orders.reduce((s, o) => s + (o.orig - o.price) * o.qty, 0);
   const meals  = orders.reduce((s, o) => s + o.qty, 0);
   const u = S.user;
+  const biz = getBizProfile();
   const CITIES = ['Mumbai', 'Delhi', 'Bengaluru', 'Chennai', 'Pune', 'Hyderabad'];
 
   return `
-    <div class="profile-top">
+    <div style="padding:14px 20px 4px;font-size:0.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em">Consumer Account</div>
+    <div class="profile-top" style="border-bottom:none;padding-bottom:4px">
       <div class="profile-avatar">👤</div>
       <div class="profile-name">${u.name || 'Food Rescuer'}</div>
       <div class="profile-email">${u.email || 'Tap below to set up your profile'}</div>
@@ -1412,11 +1413,37 @@ function vProfile() {
         <div class="pi-text"><div class="pi-label">My Orders</div><div class="pi-sub">${orders.length} order${orders.length !== 1 ? 's' : ''}</div></div>
         <div class="pi-right">›</div>
       </div>
+    </div>
+
+    <div style="height:1px;background:var(--cream-dark);margin:4px 20px 12px"></div>
+    <div style="padding:0 20px 10px;font-size:0.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em">Partner Portal</div>
+
+    ${biz ? `
+    <div style="margin:0 20px 4px;background:var(--teal-dark);border-radius:var(--radius-lg);padding:18px 20px;color:white">
+      <div style="font-size:0.65rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--saffron);margin-bottom:4px">${biz.type}</div>
+      <div style="font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:1.1rem">${biz.name}</div>
+      <div style="font-size:0.78rem;color:rgba(255,255,255,0.6);margin-top:3px">📍 ${biz.area}, ${biz.city}</div>
+    </div>
+    <div class="profile-list" style="padding-top:4px">
       <div class="profile-item" onclick="enterBiz()">
-        <div class="pi-icon">🏪</div>
-        <div class="pi-text"><div class="pi-label">Partner Portal</div><div class="pi-sub">List surplus food & manage orders</div></div>
+        <div class="pi-icon">📊</div>
+        <div class="pi-text"><div class="pi-label">Partner Dashboard</div><div class="pi-sub">Listings, orders & revenue</div></div>
         <div class="pi-right">›</div>
       </div>
+      <div class="profile-item" onclick="go('bizsetup')">
+        <div class="pi-icon">✏️</div>
+        <div class="pi-text"><div class="pi-label">Edit Business Details</div><div class="pi-sub">${biz.name} · ${biz.area}</div></div>
+        <div class="pi-right">›</div>
+      </div>
+    </div>` : `
+    <div style="margin:0 20px 16px;padding:22px 20px;background:var(--cream);border-radius:var(--radius-lg);border:1.5px dashed var(--teal-light);text-align:center">
+      <div style="font-size:2rem;margin-bottom:8px">🏪</div>
+      <div style="font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:0.95rem;margin-bottom:6px">List your food, reduce waste</div>
+      <div style="font-size:0.82rem;color:var(--muted);line-height:1.5;margin-bottom:16px">Join restaurants and bakeries already rescuing food on RescueBite</div>
+      <button class="btn-primary" style="font-size:0.85rem;padding:12px 20px" onclick="go('bizsetup')">Create Partner Account →</button>
+    </div>`}
+
+    <div class="profile-list" style="padding-top:0">
       <div class="profile-item" style="cursor:default">
         <div class="pi-icon">💚</div>
         <div class="pi-text"><div class="pi-label">About RescueBite</div><div class="pi-sub">Fighting food waste, one meal at a time</div></div>
@@ -1428,7 +1455,9 @@ function vProfile() {
 //  VIEW: BIZ DASHBOARD
 // ══════════════════════════════
 function vBizDash() {
-  const listings  = DB.listings.filter(r => r.biz_id === BIZ.id).map(mapL);
+  const biz = getBizProfile();
+  if (!biz) { go('bizsetup'); return ''; }
+  const listings  = DB.listings.filter(r => r.biz_id === biz.id).map(mapL);
   const bizOrders = getBizO();
   const newCount  = bizOrders.filter(o => o.status === 'confirmed').length;
   const totalSold = listings.reduce((s, l) => s + (l.qty - l.rem), 0);
@@ -1437,8 +1466,8 @@ function vBizDash() {
   return `
     <div class="biz-hero">
       <div class="biz-tag">Partner Dashboard</div>
-      <div class="biz-name">${BIZ.name}</div>
-      <div class="biz-sub">📍 ${BIZ.area} · ${BIZ.type}</div>
+      <div class="biz-name">${biz.name}</div>
+      <div class="biz-sub">📍 ${biz.area}, ${biz.city} · ${biz.type}</div>
     </div>
     <div class="biz-stats">
       <div class="biz-stat"><div class="biz-stat-val">${listings.length}</div><div class="biz-stat-lbl">Active Listings</div></div>
@@ -1514,6 +1543,75 @@ function vBizOrders() {
             <button class="btn-sm outline" onclick="go('bizdash')">Dashboard</button>
           </div>` : ''}
         </div>`).join('')}
+    </div>`;
+}
+
+// ══════════════════════════════
+//  VIEW: BIZ SETUP
+// ══════════════════════════════
+function vBizSetup() {
+  const existing = getBizProfile();
+  return `
+    <div style="padding:20px 20px 100px">
+      <div style="text-align:center;padding:20px 0 24px">
+        <div style="font-size:2.5rem;margin-bottom:12px">🏪</div>
+        <div style="font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:1.25rem;color:var(--teal-dark)">${existing ? 'Edit Business Details' : 'Create Partner Account'}</div>
+        <div style="font-size:0.83rem;color:var(--muted);margin-top:6px;line-height:1.5">${existing ? 'Update your business information' : 'Join the rescue movement · Free to join · No upfront costs'}</div>
+      </div>
+
+      <div class="co-section">
+        <div class="co-section-title">Business Details</div>
+        <div class="form-field">
+          <label class="form-label">Business Name</label>
+          <input class="form-input" id="bs-name" placeholder="e.g. The Bombay Bakehouse" value="${existing ? existing.name : ''}">
+        </div>
+        <div class="form-field">
+          <label class="form-label">Business Type</label>
+          <select class="form-input" id="bs-type">
+            ${[
+              ['Artisan Bakery','🥐 Bakery'],
+              ['Indian Restaurant','🍱 Restaurant'],
+              ['Café','☕ Café'],
+              ['Grocery Store','🛒 Grocery'],
+              ['Sweet Shop','🍮 Sweet Shop'],
+              ['Pizza Restaurant','🍕 Pizza Restaurant'],
+              ['Health Food Kitchen','🥗 Health Food'],
+              ['Cloud Kitchen','📦 Cloud Kitchen'],
+              ['Hotel / Banquet','🏨 Hotel / Banquet'],
+              ['Other','🍽️ Other'],
+            ].map(([v,l]) => `<option value="${v}" ${existing && existing.type === v ? 'selected' : ''}>${l}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-field">
+          <label class="form-label">Area / Locality</label>
+          <input class="form-input" id="bs-area" placeholder="e.g. Bandra West" value="${existing ? existing.area : ''}">
+        </div>
+        <div class="form-field" style="margin-bottom:0">
+          <label class="form-label">City</label>
+          <select class="form-input" id="bs-city">
+            ${['Mumbai','Delhi','Bengaluru','Chennai','Pune','Hyderabad'].map(c => `<option value="${c}" ${existing && existing.city === c ? 'selected' : ((!existing) && c === S.city ? 'selected' : '')}>${c}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+
+      <div class="co-section">
+        <div class="co-section-title">Contact Details</div>
+        <div class="form-field">
+          <label class="form-label">Owner / Manager Name</label>
+          <input class="form-input" id="bs-contact" placeholder="Your full name" value="${existing ? (existing.contact || '') : (S.user.name || '')}">
+        </div>
+        <div class="form-field" style="margin-bottom:0">
+          <label class="form-label">Business Phone</label>
+          <input class="form-input" id="bs-phone" type="tel" placeholder="+91 98765 43210" value="${existing ? (existing.phone || '') : (S.user.phone || '')}">
+        </div>
+      </div>
+
+      <button class="btn-primary" id="bs-btn" onclick="saveBizAccount()">${existing ? 'Save Changes ✓' : 'Create Partner Account →'}</button>
+      ${existing ? `
+      <div style="margin-top:10px">
+        <button class="btn-danger" onclick="deleteBizAccount()">Remove Partner Account</button>
+      </div>` : ''}
+      <p style="text-align:center;font-size:0.73rem;color:var(--muted);margin-top:10px">Your info is only used to match you with orders on RescueBite</p>
     </div>`;
 }
 
@@ -1598,8 +1696,33 @@ function cycleCity() {
   setCity(cities[(cities.indexOf(S.city) + 1) % cities.length]);
 }
 
-function enterBiz() { S.bizMode = true; go('bizdash'); }
+function enterBiz() {
+  S.bizMode = true;
+  if (!getBizProfile()) { go('bizsetup'); } else { go('bizdash'); }
+}
 function exitBiz()  { S.bizMode = false; go('home'); }
+
+function saveBizAccount() {
+  const name    = document.getElementById('bs-name')?.value.trim();
+  const type    = document.getElementById('bs-type')?.value;
+  const area    = document.getElementById('bs-area')?.value.trim();
+  const city    = document.getElementById('bs-city')?.value;
+  const contact = document.getElementById('bs-contact')?.value.trim();
+  const phone   = document.getElementById('bs-phone')?.value.trim();
+  if (!name || !area) { showToast('Please fill in business name and area'); return; }
+  const existing = getBizProfile();
+  const biz = { id: existing ? existing.id : ('b_' + Date.now().toString(36)), name, type, area, city, contact, phone };
+  localStorage.setItem('rb_biz', JSON.stringify(biz));
+  showToast(existing ? 'Business details updated ✓' : 'Partner account created! Welcome 🎉');
+  go('bizdash');
+}
+
+function deleteBizAccount() {
+  if (!confirm('Remove your partner account? Your listings and orders in the database will remain.')) return;
+  localStorage.removeItem('rb_biz');
+  showToast('Partner account removed');
+  go('profile');
+}
 
 function changeQty(d) {
   const l = getL().find(x => x.id === S.listingId);
@@ -1657,6 +1780,8 @@ async function confirmOrder(lid) {
 }
 
 async function postListing() {
+  const biz   = getBizProfile();
+  if (!biz) { showToast('No partner account found'); go('bizsetup'); return; }
   const name  = document.getElementById('nl-name')?.value.trim();
   const cat   = document.getElementById('nl-cat')?.value;
   const desc  = document.getElementById('nl-desc')?.value.trim();
@@ -1675,12 +1800,12 @@ async function postListing() {
 
   const emojiMap = { bakery: '🥐', restaurant: '🍱', cafe: '☕', grocery: '🛒' };
   const listingRow = {
-    id: 'l' + Date.now(), biz_id: BIZ.id, biz_name: BIZ.name, biz_type: BIZ.type,
+    id: 'l' + Date.now(), biz_id: biz.id, biz_name: biz.name, biz_type: biz.type,
     emoji: emojiMap[cat] || '🍽️', cat, name, description: desc,
     contents: ['Fresh daily items', 'Quality assured', 'Same-day pickup only'],
     orig, price, available_until: until,
     pickup_window: fmtTime(from) + ' – ' + fmtTime(until),
-    qty, rem: qty, city: S.city, area: BIZ.area.split(',')[0],
+    qty, rem: qty, city: biz.city, area: biz.area,
     rating: 4.8, reviews: 0,
   };
 
