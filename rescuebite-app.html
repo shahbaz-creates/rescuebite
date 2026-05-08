@@ -917,6 +917,7 @@ const S = {
   search: '',
   city: localStorage.getItem('rb_city') || 'Mumbai',
   listingId: null,
+  profileTab: 'consumer',
   qty: 1,
   bizMode: false,
   order: null,
@@ -1376,6 +1377,7 @@ function vOrders() {
 //  VIEW: PROFILE
 // ══════════════════════════════
 function vProfile() {
+  const tab = S.profileTab || 'consumer';
   const orders = getO();
   const saved  = orders.reduce((s, o) => s + (o.orig - o.price) * o.qty, 0);
   const meals  = orders.reduce((s, o) => s + o.qty, 0);
@@ -1383,9 +1385,20 @@ function vProfile() {
   const biz = getBizProfile();
   const CITIES = ['Mumbai', 'Delhi', 'Bengaluru', 'Chennai', 'Pune', 'Hyderabad'];
 
-  return `
-    <div style="padding:14px 20px 4px;font-size:0.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em">Consumer Account</div>
-    <div class="profile-top" style="border-bottom:none;padding-bottom:4px">
+  const toggle = `
+    <div style="padding:16px 20px 12px">
+      <div style="display:flex;background:var(--cream);border-radius:12px;padding:4px;gap:4px">
+        <button onclick="setProfileTab('consumer')" style="flex:1;padding:9px 0;border:none;border-radius:9px;font-family:'Plus Jakarta Sans',sans-serif;font-size:0.88rem;font-weight:700;cursor:pointer;transition:all 0.18s;${tab==='consumer'?'background:var(--teal-dark);color:white;box-shadow:0 2px 8px rgba(0,0,0,0.15)':'background:transparent;color:var(--muted)'}">
+          👤 Consumer
+        </button>
+        <button onclick="setProfileTab('partner')" style="flex:1;padding:9px 0;border:none;border-radius:9px;font-family:'Plus Jakarta Sans',sans-serif;font-size:0.88rem;font-weight:700;cursor:pointer;transition:all 0.18s;${tab==='partner'?'background:var(--teal-dark);color:white;box-shadow:0 2px 8px rgba(0,0,0,0.15)':'background:transparent;color:var(--muted)'}">
+          🏪 Partner
+        </button>
+      </div>
+    </div>`;
+
+  const consumerPanel = `
+    <div class="profile-top" style="border-bottom:none;padding-top:8px;padding-bottom:4px">
       <div class="profile-avatar">👤</div>
       <div class="profile-name">${u.name || 'Food Rescuer'}</div>
       <div class="profile-email">${u.email || 'Tap below to set up your profile'}</div>
@@ -1413,15 +1426,16 @@ function vProfile() {
         <div class="pi-text"><div class="pi-label">My Orders</div><div class="pi-sub">${orders.length} order${orders.length !== 1 ? 's' : ''}</div></div>
         <div class="pi-right">›</div>
       </div>
-    </div>
+      <div class="profile-item" style="cursor:default">
+        <div class="pi-icon">💚</div>
+        <div class="pi-text"><div class="pi-label">About RescueBite</div><div class="pi-sub">Fighting food waste, one meal at a time</div></div>
+      </div>
+    </div>`;
 
-    <div style="height:1px;background:var(--cream-dark);margin:4px 20px 12px"></div>
-    <div style="padding:0 20px 10px;font-size:0.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em">Partner Portal</div>
-
-    ${biz ? `
-    <div style="margin:0 20px 4px;background:var(--teal-dark);border-radius:var(--radius-lg);padding:18px 20px;color:white">
+  const partnerPanel = biz ? `
+    <div style="margin:8px 20px 4px;background:var(--teal-dark);border-radius:var(--radius-lg);padding:18px 20px;color:white">
       <div style="font-size:0.65rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--saffron);margin-bottom:4px">${biz.type}</div>
-      <div style="font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:1.1rem">${biz.name}</div>
+      <div style="font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:1.15rem">${biz.name}</div>
       <div style="font-size:0.78rem;color:rgba(255,255,255,0.6);margin-top:3px">📍 ${biz.area}, ${biz.city}</div>
     </div>
     <div class="profile-list" style="padding-top:4px">
@@ -1436,19 +1450,14 @@ function vProfile() {
         <div class="pi-right">›</div>
       </div>
     </div>` : `
-    <div style="margin:0 20px 16px;padding:22px 20px;background:var(--cream);border-radius:var(--radius-lg);border:1.5px dashed var(--teal-light);text-align:center">
-      <div style="font-size:2rem;margin-bottom:8px">🏪</div>
+    <div style="margin:16px 20px;padding:28px 20px;background:var(--cream);border-radius:var(--radius-lg);border:1.5px dashed var(--teal-light);text-align:center">
+      <div style="font-size:2.2rem;margin-bottom:10px">🏪</div>
       <div style="font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:0.95rem;margin-bottom:6px">List your food, reduce waste</div>
       <div style="font-size:0.82rem;color:var(--muted);line-height:1.5;margin-bottom:16px">Join restaurants and bakeries already rescuing food on RescueBite</div>
       <button class="btn-primary" style="font-size:0.85rem;padding:12px 20px" onclick="go('bizsetup')">Create Partner Account →</button>
-    </div>`}
-
-    <div class="profile-list" style="padding-top:0">
-      <div class="profile-item" style="cursor:default">
-        <div class="pi-icon">💚</div>
-        <div class="pi-text"><div class="pi-label">About RescueBite</div><div class="pi-sub">Fighting food waste, one meal at a time</div></div>
-      </div>
     </div>`;
+
+  return toggle + (tab === 'consumer' ? consumerPanel : partnerPanel);
 }
 
 // ══════════════════════════════
@@ -1683,6 +1692,7 @@ function vNewListing() {
 //  ACTIONS
 // ══════════════════════════════
 function setFilter(f) { S.filter = f; render(); }
+function setProfileTab(t) { S.profileTab = t; render(); }
 
 function setCity(c) {
   S.city = c;
