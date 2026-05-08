@@ -922,7 +922,7 @@ const S = {
   bizMode: false,
   order: null,
   pendingOrder: null,
-  otpEmail: '',
+  otpEmail: '', otpCode: null, otpExpiry: null,
   loading: true,
   dbError: false,
   user: JSON.parse(localStorage.getItem('rb_user') || 'null') || { name: '', phone: '', email: '', countryCode: '+91' },
@@ -1356,22 +1356,30 @@ function vOtpVerify() {
   const masked = S.otpEmail
     ? S.otpEmail.replace(/(.{2})[^@]+(@.*)/, '$1•••$2')
     : 'your email';
+  const mins = S.otpExpiry
+    ? Math.max(0, Math.ceil((S.otpExpiry - Date.now()) / 60000))
+    : 10;
   return `
     <div style="padding:32px 24px;display:flex;flex-direction:column;align-items:center;min-height:70vh">
-      <div style="font-size:3rem;margin-bottom:16px">📧</div>
-      <h2 class="jakarta" style="font-size:1.3rem;font-weight:800;color:var(--dark);text-align:center;margin-bottom:8px">Check your inbox</h2>
-      <p style="text-align:center;color:var(--muted);font-size:0.88rem;line-height:1.5;margin-bottom:32px">
-        We sent a 6-digit code to<br>
-        <strong style="color:var(--dark)">${masked}</strong>
+      <div style="font-size:3rem;margin-bottom:16px">🔐</div>
+      <h2 class="jakarta" style="font-size:1.3rem;font-weight:800;color:var(--dark);text-align:center;margin-bottom:8px">Verify your email</h2>
+      <p style="text-align:center;color:var(--muted);font-size:0.88rem;line-height:1.5;margin-bottom:20px">
+        Confirming order for<br><strong style="color:var(--dark)">${masked}</strong>
       </p>
+
+      <div style="width:100%;background:var(--cream);border:2px dashed var(--teal-light);border-radius:16px;padding:20px 24px;text-align:center;margin-bottom:24px">
+        <div style="font-size:0.72rem;font-weight:700;color:var(--teal);letter-spacing:0.08em;margin-bottom:8px">YOUR VERIFICATION CODE</div>
+        <div id="otp-display" style="font-family:'Plus Jakarta Sans',sans-serif;font-size:2.4rem;font-weight:800;letter-spacing:0.2em;color:var(--dark)">${S.otpCode || '------'}</div>
+        <div style="font-size:0.7rem;color:var(--muted);margin-top:6px">Valid for ${mins} minute${mins !== 1 ? 's' : ''}</div>
+      </div>
 
       <div style="width:100%;max-width:320px">
         <div class="form-field">
-          <label class="form-label">Verification Code</label>
+          <label class="form-label">Enter the code above</label>
           <input class="form-input" id="otp-code" type="number" inputmode="numeric" pattern="[0-9]*"
-            placeholder="6-digit code" maxlength="6"
-            style="text-align:center;font-size:1.4rem;letter-spacing:0.2em;font-family:'Plus Jakarta Sans',sans-serif;font-weight:700"
-            oninput="if(this.value.length>6)this.value=this.value.slice(0,6)">
+            placeholder="6-digit code" autocomplete="one-time-code"
+            style="text-align:center;font-size:1.5rem;letter-spacing:0.25em;font-family:'Plus Jakarta Sans',sans-serif;font-weight:700"
+            oninput="this.value=this.value.slice(0,6)">
         </div>
 
         <button class="btn-primary" id="otp-verify-btn" onclick="verifyAndCompleteOrder()" style="margin-top:4px">
@@ -1379,13 +1387,9 @@ function vOtpVerify() {
         </button>
 
         <div style="text-align:center;margin-top:16px">
-          <span style="color:var(--muted);font-size:0.82rem">Didn't receive it? </span>
-          <span onclick="resendOtp()" style="color:var(--teal);font-weight:600;font-size:0.82rem;cursor:pointer;text-decoration:underline">Resend code</span>
+          <span style="color:var(--muted);font-size:0.82rem">Code expired? </span>
+          <span onclick="resendOtp()" style="color:var(--teal);font-weight:600;font-size:0.82rem;cursor:pointer;text-decoration:underline">Get a new code</span>
         </div>
-
-        <p style="text-align:center;font-size:0.73rem;color:var(--muted);margin-top:24px;line-height:1.5">
-          Check your spam folder if you don't see it.<br>The code expires in 10 minutes.
-        </p>
       </div>
     </div>`;
 }
@@ -1959,6 +1963,10 @@ function changeQty(d) {
   if (ct && l) ct.textContent = fp(l.price * S.qty);
 }
 
+function genOtp() {
+  return String(Math.floor(100000 + Math.random() * 900000));
+}
+
 async function confirmOrder(lid) {
   const name  = document.getElementById('co-name')?.value.trim();
   const email = document.getElementById('co-email')?.value.trim();
@@ -1973,13 +1981,13 @@ async function confirmOrder(lid) {
   if (!l || l.rem < S.qty) { showToast('Not enough bags available'); return; }
 
   const btn = document.getElementById('confirm-btn');
-  if (btn) { btn.disabled = true; btn.textContent = 'Sending code…'; }
+  if (btn) { btn.disabled = true; btn.textContent = 'Generating code…'; }
 
-  // Save user details locally
+  // Save user details
   S.user = { ...S.user, name, email, phone, countryCode: cc };
   localStorage.setItem('rb_user', JSON.stringify(S.user));
 
-  // Build pending order (will be inserted after OTP verified)
+  // Build pending order (inserted only after OTP confirmed)
   const orderId = uid();
   S.pendingOrder = {
     id: orderId, listing_id: lid, biz_id: l.bizId,
@@ -1990,49 +1998,38 @@ async function confirmOrder(lid) {
     customer: name, phone: cc + ' ' + phone, consumer_id: CID, status: 'confirmed',
   };
 
-  // Send OTP via Supabase Auth (free, no Twilio needed)
-  const { error } = await supa.auth.signInWithOtp({
+  // Generate OTP and store with 10-min expiry
+  S.otpCode   = genOtp();
+  S.otpEmail  = email;
+  S.otpExpiry = Date.now() + 10 * 60 * 1000;
+
+  // Persist token to Supabase so it survives a page refresh
+  await supa.from('otp_tokens').upsert({
     email,
-    options: { shouldCreateUser: true },
-  });
+    code: S.otpCode,
+    expires_at: new Date(S.otpExpiry).toISOString(),
+  }, { onConflict: 'email' }).select();  // errors silently — in-memory is the source of truth
 
-  if (error) {
-    showToast('Could not send OTP — please check your email and try again');
-    if (btn) { btn.disabled = false; btn.textContent = `Confirm Reservation — ₹${l.price * S.qty}`; }
-    return;
-  }
-
-  S.otpEmail = email;
   go('otpverify');
 }
 
 async function verifyAndCompleteOrder() {
-  const token = document.getElementById('otp-code')?.value.trim();
-  if (!token || token.length < 6) { showToast('Please enter the 6-digit code'); return; }
+  const entered = document.getElementById('otp-code')?.value.trim();
+  if (!entered || entered.length < 6) { showToast('Please enter the 6-digit code'); return; }
+
+  // Check expiry
+  if (!S.otpCode || !S.otpExpiry) { showToast('Session expired — please start again'); go('checkout'); return; }
+  if (Date.now() > S.otpExpiry)   { showToast('Code has expired — tap "Get a new code"'); return; }
+  if (entered !== S.otpCode)      { showToast('Incorrect code — please try again'); return; }
 
   const btn = document.getElementById('otp-verify-btn');
-  if (btn) { btn.disabled = true; btn.textContent = 'Verifying…'; }
+  if (btn) { btn.disabled = true; btn.textContent = 'Placing order…'; }
 
-  const { error } = await supa.auth.verifyOtp({
-    email: S.otpEmail,
-    token,
-    type: 'email',
-  });
-
-  if (error) {
-    showToast('Invalid or expired code — please try again');
-    if (btn) { btn.disabled = false; btn.textContent = 'Verify & Complete Reservation'; }
-    return;
-  }
-
-  // OTP verified — now place the order
   const p = S.pendingOrder;
   if (!p) { showToast('Order data lost — please start again'); go('home'); return; }
 
   const l = getL().find(x => x.id === p.listing_id);
   if (!l || l.rem < p.qty) { showToast('Sorry, bag is no longer available'); go('home'); return; }
-
-  if (btn) btn.textContent = 'Placing order…';
 
   const [{ error: oe }, { error: le }] = await Promise.all([
     supa.from('orders').insert(p),
@@ -2050,18 +2047,27 @@ async function verifyAndCompleteOrder() {
   const dbL = DB.listings.find(x => x.id === p.listing_id);
   if (dbL) dbL.rem -= p.qty;
 
+  // Clean up OTP state
+  S.otpCode = null; S.otpExpiry = null; S.pendingOrder = null;
+  supa.from('otp_tokens').delete().eq('email', S.otpEmail).then(() => {});
+
   S.order = mapO({ ...p, created_at: new Date().toISOString() });
-  S.pendingOrder = null;
   go('success');
 }
 
-async function resendOtp() {
-  if (!S.otpEmail) return;
-  const { error } = await supa.auth.signInWithOtp({
+function resendOtp() {
+  if (!S.otpEmail || !S.pendingOrder) { showToast('Please restart checkout'); go('home'); return; }
+  S.otpCode   = genOtp();
+  S.otpExpiry = Date.now() + 10 * 60 * 1000;
+  supa.from('otp_tokens').upsert({
     email: S.otpEmail,
-    options: { shouldCreateUser: true },
-  });
-  showToast(error ? 'Could not resend — please try again' : 'New code sent! Check your inbox');
+    code: S.otpCode,
+    expires_at: new Date(S.otpExpiry).toISOString(),
+  }, { onConflict: 'email' }).select().then(() => {});
+  // Refresh the code display
+  const d = document.getElementById('otp-display');
+  if (d) d.textContent = S.otpCode;
+  showToast('New code generated!');
 }
 
 async function postListing() {
