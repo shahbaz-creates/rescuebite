@@ -923,7 +923,7 @@ const S = {
   order: null,
   loading: true,
   dbError: false,
-  user: JSON.parse(localStorage.getItem('rb_user') || 'null') || { name: '', phone: '', email: '' },
+  user: JSON.parse(localStorage.getItem('rb_user') || 'null') || { name: '', phone: '', email: '', countryCode: '+91' },
 };
 
 // ══════════════════════════════
@@ -985,8 +985,8 @@ function render() {
 // ── Header ──────────────────
 function renderHeader() {
   const el = document.getElementById('header');
-  const backViews = { detail: 'home', checkout: 'detail', newlisting: 'bizdash', bizorders: 'bizdash', bizsetup: 'profile' };
-  const titles = { detail: 'Bag Details', checkout: 'Confirm Order', newlisting: 'Post a Listing', bizorders: 'Incoming Orders', bizsetup: 'Partner Account', orders: 'My Orders', profile: 'My Profile', bizdash: 'Partner Dashboard' };
+  const backViews = { detail: 'home', checkout: 'detail', newlisting: 'bizdash', bizorders: 'bizdash', bizsetup: 'profile', consumersetup: 'profile' };
+  const titles = { detail: 'Bag Details', checkout: 'Confirm Order', newlisting: 'Post a Listing', bizorders: 'Incoming Orders', bizsetup: 'Partner Account', consumersetup: 'Your Profile', orders: 'My Orders', profile: 'My Profile', bizdash: 'Partner Dashboard' };
 
   if (S.view === 'success') { el.innerHTML = ''; return; }
 
@@ -1032,7 +1032,7 @@ function renderHeader() {
 // ── Tab bar ──────────────────
 function renderTabBar() {
   const el = document.getElementById('tab-bar');
-  if (['success', 'checkout', 'bizdash', 'newlisting', 'bizorders', 'bizsetup'].includes(S.view)) { el.innerHTML = ''; return; }
+  if (['success', 'checkout', 'bizdash', 'newlisting', 'bizorders', 'bizsetup', 'consumersetup'].includes(S.view)) { el.innerHTML = ''; return; }
 
   const tabs = [
     { id: 'home',    icon: '🏠', label: 'Browse'  },
@@ -1053,7 +1053,7 @@ function renderContent() {
   void el.offsetWidth;
   el.classList.add('fade-up');
 
-  const map = { home: vHome, detail: vDetail, checkout: vCheckout, success: vSuccess, orders: vOrders, profile: vProfile, bizdash: vBizDash, newlisting: vNewListing, bizorders: vBizOrders, bizsetup: vBizSetup };
+  const map = { home: vHome, detail: vDetail, checkout: vCheckout, success: vSuccess, orders: vOrders, profile: vProfile, bizdash: vBizDash, newlisting: vNewListing, bizorders: vBizOrders, bizsetup: vBizSetup, consumersetup: vConsumerSetup };
   el.innerHTML = (map[S.view] || vHome)();
   bindEvents();
 }
@@ -1397,11 +1397,13 @@ function vProfile() {
       </div>
     </div>`;
 
-  const consumerPanel = `
+  const isSignedUp = u.name && u.email;
+
+  const consumerPanel = isSignedUp ? `
     <div class="profile-top" style="border-bottom:none;padding-top:8px;padding-bottom:4px">
       <div class="profile-avatar">👤</div>
-      <div class="profile-name">${u.name || 'Food Rescuer'}</div>
-      <div class="profile-email">${u.email || 'Tap below to set up your profile'}</div>
+      <div class="profile-name">${u.name}</div>
+      <div class="profile-email">${u.email}</div>
       <div class="profile-stats">
         <div class="ps-item"><div class="ps-val">${meals}</div><div class="ps-lbl">Meals rescued</div></div>
         <div class="ps-item"><div class="ps-val">₹${saved}</div><div class="ps-lbl">Money saved</div></div>
@@ -1409,9 +1411,9 @@ function vProfile() {
       </div>
     </div>
     <div class="profile-list">
-      <div class="profile-item" onclick="editProfile()">
+      <div class="profile-item" onclick="go('consumersetup')">
         <div class="pi-icon">✏️</div>
-        <div class="pi-text"><div class="pi-label">Edit Profile</div><div class="pi-sub">Name, phone, email</div></div>
+        <div class="pi-text"><div class="pi-label">Edit Profile</div><div class="pi-sub">${u.countryCode || '+91'} ${u.phone}</div></div>
         <div class="pi-right">›</div>
       </div>
       <div class="profile-item">
@@ -1425,6 +1427,25 @@ function vProfile() {
         <div class="pi-icon">🧺</div>
         <div class="pi-text"><div class="pi-label">My Orders</div><div class="pi-sub">${orders.length} order${orders.length !== 1 ? 's' : ''}</div></div>
         <div class="pi-right">›</div>
+      </div>
+      <div class="profile-item" style="cursor:default">
+        <div class="pi-icon">💚</div>
+        <div class="pi-text"><div class="pi-label">About RescueBite</div><div class="pi-sub">Fighting food waste, one meal at a time</div></div>
+      </div>
+    </div>` : `
+    <div style="display:flex;flex-direction:column;align-items:center;text-align:center;padding:32px 24px 16px">
+      <div style="width:80px;height:80px;background:var(--cream);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:2.2rem;margin-bottom:16px;border:2px dashed var(--teal-light)">👤</div>
+      <div style="font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:1.2rem;color:var(--teal-dark);margin-bottom:6px">Welcome to RescueBite!</div>
+      <div style="font-size:0.85rem;color:var(--muted);line-height:1.6;margin-bottom:24px">Create your profile to track rescued meals, save money stats, and get personalised picks.</div>
+      <button class="btn-primary" onclick="go('consumersetup')" style="width:100%">Create Profile →</button>
+    </div>
+    <div class="profile-list" style="padding-top:4px">
+      <div class="profile-item">
+        <div class="pi-icon">📍</div>
+        <div class="pi-text"><div class="pi-label">City</div><div class="pi-sub">${S.city}</div></div>
+        <select onchange="setCity(this.value)" style="border:none;background:transparent;font-size:0.8rem;color:var(--teal);font-weight:600;cursor:pointer;outline:none">
+          ${CITIES.map(c => `<option value="${c}" ${c === S.city ? 'selected' : ''}>${c}</option>`).join('')}
+        </select>
       </div>
       <div class="profile-item" style="cursor:default">
         <div class="pi-icon">💚</div>
@@ -1552,6 +1573,78 @@ function vBizOrders() {
             <button class="btn-sm outline" onclick="go('bizdash')">Dashboard</button>
           </div>` : ''}
         </div>`).join('')}
+    </div>`;
+}
+
+// ══════════════════════════════
+//  VIEW: CONSUMER SETUP
+// ══════════════════════════════
+const COUNTRY_CODES = [
+  { flag:'🇮🇳', code:'+91',  name:'India'        },
+  { flag:'🇺🇸', code:'+1',   name:'USA'           },
+  { flag:'🇬🇧', code:'+44',  name:'UK'            },
+  { flag:'🇦🇪', code:'+971', name:'UAE'           },
+  { flag:'🇸🇬', code:'+65',  name:'Singapore'     },
+  { flag:'🇦🇺', code:'+61',  name:'Australia'     },
+  { flag:'🇨🇦', code:'+1',   name:'Canada'        },
+  { flag:'🇳🇿', code:'+64',  name:'New Zealand'   },
+  { flag:'🇩🇪', code:'+49',  name:'Germany'       },
+  { flag:'🇫🇷', code:'+33',  name:'France'        },
+  { flag:'🇳🇱', code:'+31',  name:'Netherlands'   },
+  { flag:'🇮🇹', code:'+39',  name:'Italy'         },
+  { flag:'🇸🇦', code:'+966', name:'Saudi Arabia'  },
+  { flag:'🇧🇩', code:'+880', name:'Bangladesh'    },
+  { flag:'🇵🇰', code:'+92',  name:'Pakistan'      },
+  { flag:'🇳🇵', code:'+977', name:'Nepal'         },
+  { flag:'🇱🇰', code:'+94',  name:'Sri Lanka'     },
+  { flag:'🇲🇾', code:'+60',  name:'Malaysia'      },
+  { flag:'🇹🇭', code:'+66',  name:'Thailand'      },
+  { flag:'🇯🇵', code:'+81',  name:'Japan'         },
+  { flag:'🇰🇷', code:'+82',  name:'South Korea'   },
+  { flag:'🇨🇳', code:'+86',  name:'China'         },
+  { flag:'🇿🇦', code:'+27',  name:'South Africa'  },
+  { flag:'🇧🇷', code:'+55',  name:'Brazil'        },
+];
+
+function vConsumerSetup() {
+  const u = S.user;
+  const isEdit = !!(u.name && u.email);
+  const cc = u.countryCode || '+91';
+  return `
+    <div style="padding:20px 20px 100px">
+      <div style="text-align:center;padding:20px 0 24px">
+        <div style="width:72px;height:72px;background:var(--teal-dark);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:2rem;margin:0 auto 14px">👤</div>
+        <div style="font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:1.2rem;color:var(--teal-dark)">${isEdit ? 'Edit Your Profile' : 'Create Your Profile'}</div>
+        <div style="font-size:0.83rem;color:var(--muted);margin-top:5px">${isEdit ? 'Update your details below' : 'Quick setup — takes under a minute'}</div>
+      </div>
+
+      <div class="co-section">
+        <div class="co-section-title">Personal Details</div>
+        <div class="form-field">
+          <label class="form-label">Full Name</label>
+          <input class="form-input" id="cs-name" type="text" placeholder="Your full name" value="${u.name || ''}" autocomplete="name">
+        </div>
+        <div class="form-field" style="margin-bottom:0">
+          <label class="form-label">Email Address</label>
+          <input class="form-input" id="cs-email" type="email" placeholder="you@example.com" value="${u.email || ''}" autocomplete="email">
+        </div>
+      </div>
+
+      <div class="co-section">
+        <div class="co-section-title">Phone Number</div>
+        <div class="form-field" style="margin-bottom:0">
+          <label class="form-label">Mobile</label>
+          <div style="display:flex;gap:8px">
+            <select class="form-input" id="cs-cc" style="width:auto;flex-shrink:0;padding-right:30px">
+              ${COUNTRY_CODES.map(c => `<option value="${c.code}" ${c.code === cc && c.name === (COUNTRY_CODES.find(x=>x.code===cc)||{name:''}).name ? 'selected':''} ${c.code===cc?'selected':''}>${c.flag} ${c.code}</option>`).join('')}
+            </select>
+            <input class="form-input" id="cs-phone" type="tel" placeholder="98765 43210" value="${u.phone || ''}" autocomplete="tel-national" style="flex:1;min-width:0">
+          </div>
+        </div>
+      </div>
+
+      <button class="btn-primary" id="cs-btn" onclick="saveConsumerProfile()">${isEdit ? 'Save Changes ✓' : 'Create Profile →'}</button>
+      ${isEdit ? `<div style="margin-top:10px"><button class="btn-danger" onclick="deleteConsumerProfile()">Delete Profile</button></div>` : ''}
     </div>`;
 }
 
@@ -1849,17 +1942,26 @@ async function markDone(id) {
   render();
 }
 
-function editProfile() {
-  const name  = prompt('Your name:', S.user.name || '');
-  if (name === null) return;
-  const phone = prompt('Phone number:', S.user.phone || '');
-  if (phone === null) return;
-  const email = prompt('Email address:', S.user.email || '');
-  if (email === null) return;
-  S.user = { name: name.trim(), phone: phone.trim(), email: email.trim() };
+function saveConsumerProfile() {
+  const name  = document.getElementById('cs-name')?.value.trim();
+  const email = document.getElementById('cs-email')?.value.trim();
+  const cc    = document.getElementById('cs-cc')?.value;
+  const phone = document.getElementById('cs-phone')?.value.trim();
+  if (!name) { showToast('Please enter your name'); return; }
+  if (!email || !email.includes('@')) { showToast('Please enter a valid email'); return; }
+  if (!phone) { showToast('Please enter your phone number'); return; }
+  S.user = { ...S.user, name, email, phone, countryCode: cc };
   localStorage.setItem('rb_user', JSON.stringify(S.user));
-  showToast('Profile updated!');
-  render();
+  showToast('Profile saved! Welcome, ' + name.split(' ')[0] + ' 👋');
+  go('profile');
+}
+
+function deleteConsumerProfile() {
+  if (!confirm('Delete your profile? Your order history will remain.')) return;
+  S.user = { name: '', phone: '', email: '', countryCode: '+91' };
+  localStorage.setItem('rb_user', JSON.stringify(S.user));
+  showToast('Profile deleted');
+  go('profile');
 }
 
 // ══════════════════════════════
