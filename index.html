@@ -967,7 +967,11 @@ function fmtTime(t) {
 // ══════════════════════════════
 //  ROUTER
 // ══════════════════════════════
+// Consumer-only views — redirect to partner dashboard when in biz mode
+const CONSUMER_VIEWS = ['home', 'detail', 'checkout', 'success', 'orders'];
+
 function go(view, data = {}) {
+  if (S.bizMode && CONSUMER_VIEWS.includes(view)) { view = 'bizdash'; data = {}; }
   Object.assign(S, data, { view });
   render();
   document.getElementById('content').scrollTop = 0;
@@ -985,8 +989,8 @@ function render() {
 // ── Header ──────────────────
 function renderHeader() {
   const el = document.getElementById('header');
-  const backViews = { detail: 'home', checkout: 'detail', newlisting: 'bizdash', bizorders: 'bizdash', bizsetup: 'profile', consumersetup: 'profile' };
-  const titles = { detail: 'Bag Details', checkout: 'Confirm Order', newlisting: 'Post a Listing', bizorders: 'Incoming Orders', bizsetup: 'Partner Account', consumersetup: 'Your Profile', orders: 'My Orders', profile: 'My Profile', bizdash: 'Partner Dashboard' };
+  const backViews = { detail: 'home', checkout: 'detail', newlisting: 'bizdash', bizsetup: 'profile', consumersetup: 'profile' };
+  const titles = { detail: 'Bag Details', checkout: 'Confirm Order', newlisting: 'Post a Listing', bizsetup: 'Partner Account', consumersetup: 'Your Profile', orders: 'My Orders', profile: 'My Profile' };
 
   if (S.view === 'success') { el.innerHTML = ''; return; }
 
@@ -1001,15 +1005,22 @@ function renderHeader() {
     return;
   }
 
-  if (S.view === 'bizdash') {
+  // Partner mode header — shown for bizdash, bizorders, and profile when bizMode
+  if (S.bizMode) {
+    const biz = getBizProfile();
     el.innerHTML = `
       <div class="header-main">
         <div class="logo"><span class="logo-dot"></span>RescueBite</div>
-        <button class="icon-btn" onclick="exitBiz()" title="Exit partner mode">🚪</button>
-      </div>`;
+        <div style="display:flex;align-items:center;gap:6px">
+          <div style="font-size:0.7rem;font-weight:700;color:var(--teal);background:rgba(0,109,119,0.1);padding:3px 10px;border-radius:1rem">Partner</div>
+        </div>
+      </div>
+      ${S.view === 'bizdash' && biz ? `
+      <div style="padding:0 20px 10px;font-size:0.8rem;color:var(--muted);font-weight:500">📍 ${biz.name} · ${biz.area}</div>` : ''}`;
     return;
   }
 
+  // Consumer header
   const active = getO().filter(o => o.status === 'confirmed').length;
   el.innerHTML = `
     <div class="header-main">
@@ -1032,8 +1043,27 @@ function renderHeader() {
 // ── Tab bar ──────────────────
 function renderTabBar() {
   const el = document.getElementById('tab-bar');
-  if (['success', 'checkout', 'bizdash', 'newlisting', 'bizorders', 'bizsetup', 'consumersetup'].includes(S.view)) { el.innerHTML = ''; return; }
 
+  // Always hide for these views
+  if (['success', 'checkout', 'newlisting', 'bizsetup', 'consumersetup'].includes(S.view)) { el.innerHTML = ''; return; }
+
+  // Partner tab bar
+  if (S.bizMode) {
+    const newCount = getBizO().filter(o => o.status === 'confirmed').length;
+    const tabs = [
+      { id: 'bizdash',   icon: '📊', label: 'Dashboard' },
+      { id: 'bizorders', icon: '📋', label: 'Orders',   badge: newCount },
+      { id: 'profile',   icon: '👤', label: 'Profile'  },
+    ];
+    el.innerHTML = tabs.map(t => `
+      <div class="tab ${S.view === t.id ? 'active' : ''}" onclick="${t.id === 'profile' ? "go('profile',{profileTab:'partner'})" : `go('${t.id}')`}">
+        <span class="tab-icon" style="position:relative">${t.icon}${t.badge ? `<span class="badge">${t.badge}</span>` : ''}</span>
+        <span class="tab-label">${t.label}</span>
+      </div>`).join('');
+    return;
+  }
+
+  // Consumer tab bar
   const tabs = [
     { id: 'home',    icon: '🏠', label: 'Browse'  },
     { id: 'orders',  icon: '🧺', label: 'Orders'  },
@@ -1460,11 +1490,16 @@ function vProfile() {
       <div style="font-size:0.78rem;color:rgba(255,255,255,0.6);margin-top:3px">📍 ${biz.area}, ${biz.city}</div>
     </div>
     <div class="profile-list" style="padding-top:4px">
+      ${S.bizMode ? `
+      <div class="profile-item" onclick="exitBiz()">
+        <div class="pi-icon" style="background:rgba(231,111,81,0.1)">🚪</div>
+        <div class="pi-text"><div class="pi-label" style="color:var(--terra)">Exit Partner Mode</div><div class="pi-sub">Switch back to customer view</div></div>
+      </div>` : `
       <div class="profile-item" onclick="enterBiz()">
         <div class="pi-icon">📊</div>
-        <div class="pi-text"><div class="pi-label">Partner Dashboard</div><div class="pi-sub">Listings, orders & revenue</div></div>
+        <div class="pi-text"><div class="pi-label">Go to Partner Dashboard</div><div class="pi-sub">Listings, orders & revenue</div></div>
         <div class="pi-right">›</div>
-      </div>
+      </div>`}
       <div class="profile-item" onclick="go('bizsetup')">
         <div class="pi-icon">✏️</div>
         <div class="pi-text"><div class="pi-label">Edit Business Details</div><div class="pi-sub">${biz.name} · ${biz.area}</div></div>
