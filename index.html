@@ -966,6 +966,15 @@ function fmtTime(t) {
   return `${h % 12 || 12}:${String(m).padStart(2,'0')} ${h >= 12 ? 'PM' : 'AM'}`;
 }
 
+// Returns true if the pickup window has closed (available_until is in the past today)
+function isExpired(timeStr) {
+  if (!timeStr) return false;
+  const [h, m] = timeStr.split(':').map(Number);
+  const cutoff = new Date();
+  cutoff.setHours(h, m, 0, 0);
+  return Date.now() > cutoff.getTime();
+}
+
 // ══════════════════════════════
 //  ROUTER
 // ══════════════════════════════
@@ -1111,7 +1120,9 @@ function vHome() {
   const shown = getL().filter(l => {
     const catOk    = S.filter === 'all' || l.cat === S.filter;
     const searchOk = !S.search || l.name.toLowerCase().includes(S.search.toLowerCase()) || l.bizName.toLowerCase().includes(S.search.toLowerCase());
-    return catOk && searchOk;
+    const hasStock = l.rem > 0;
+    const inWindow = !isExpired(l.until);
+    return catOk && searchOk && hasStock && inWindow;
   });
 
   const myOrders = getO();
