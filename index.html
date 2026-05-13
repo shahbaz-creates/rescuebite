@@ -1286,8 +1286,8 @@ function vDetail() {
             <span class="qty-val" id="qty-val" style="min-width:32px;text-align:center">${S.qty}</span>
             <button class="qty-btn" onclick="changeQty(1)" style="border-radius:0;border:none">+</button>
           </div>
-          <button class="btn-primary" style="flex:1" onclick="addToCart('${l.id}')">
-            Add to Cart 🛒 — ${fp(l.price * S.qty)}
+          <button class="btn-primary" id="reserve-btn" style="flex:1" onclick="reserveBag('${l.id}')">
+            Reserve Bag — ${fp(l.price * S.qty)} →
           </button>
         </div>` : `<button class="btn-primary" disabled>Sold Out</button>`}
     </div>`;
@@ -2134,6 +2134,21 @@ function addToCart(lid) {
   render(); // refresh header badge
 }
 
+function reserveBag(lid) {
+  const l = getL().find(x => x.id === lid);
+  if (!l) return;
+  const existing = S.cart.find(i => i.listingId === lid);
+  if (existing) {
+    existing.qty = Math.min(l.rem, existing.qty + S.qty);
+  } else {
+    S.cart.push({ listingId: lid, qty: Math.min(l.rem, S.qty) });
+  }
+  saveCart();
+  S.qty = 1;
+  showToast('Added to cart! 🛒');
+  go('cart');
+}
+
 function removeFromCart(lid) {
   S.cart = S.cart.filter(i => i.listingId !== lid);
   saveCart();
@@ -2155,9 +2170,8 @@ function changeQty(d) {
   S.qty = Math.max(1, Math.min(l ? l.rem : 10, S.qty + d));
   const qv = document.getElementById('qty-val');
   if (qv) qv.textContent = S.qty;
-  // Update "Add to Cart" button price
-  const btn = document.querySelector('.sticky-cta .btn-primary');
-  if (btn && l) btn.textContent = `Add to Cart 🛒 — ${fp(l.price * S.qty)}`;
+  const btn = document.getElementById('reserve-btn');
+  if (btn && l) btn.textContent = `Reserve Bag — ${fp(l.price * S.qty)} →`;
 }
 
 function genOtp() {
