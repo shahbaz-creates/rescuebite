@@ -1269,11 +1269,11 @@ function vDetail() {
         </div>
       </div>
       <div class="price-box">
-        <div class="pb-row"><span class="pb-lbl">Original price</span><span style="text-decoration:line-through;color:var(--muted)">${fp(l.orig)}</span></div>
-        <div class="pb-row"><span class="pb-lbl">Rescue price</span><span style="color:var(--teal);font-weight:600">${fp(l.price)}</span></div>
+        <div class="pb-row"><span class="pb-lbl">Original price</span><span id="pb-orig" style="text-decoration:line-through;color:var(--muted)">${fp(l.orig)}</span></div>
+        <div class="pb-row"><span class="pb-lbl">Rescue price</span><span id="pb-price" style="color:var(--teal);font-weight:600">${fp(l.price)}</span></div>
         <div class="pb-row total">
-          <span class="pb-lbl">You save<span class="save-chip">${save(l.orig, l.price)}</span></span>
-          <span class="pb-val">${fp(l.price)}</span>
+          <span class="pb-lbl">You save<span class="save-chip" id="pb-save">${save(l.orig, l.price)}</span></span>
+          <span class="pb-val" id="pb-total">${fp(l.price)}</span>
         </div>
       </div>
     </div>
@@ -2172,6 +2172,17 @@ function changeQty(d) {
   if (qv) qv.textContent = S.qty;
   const btn = document.getElementById('reserve-btn');
   if (btn && l) btn.textContent = `Reserve Bag — ${fp(l.price * S.qty)} →`;
+  // Update price box
+  if (l) {
+    const pbOrig  = document.getElementById('pb-orig');
+    const pbPrice = document.getElementById('pb-price');
+    const pbSave  = document.getElementById('pb-save');
+    const pbTotal = document.getElementById('pb-total');
+    if (pbOrig)  pbOrig.textContent  = fp(l.orig  * S.qty);
+    if (pbPrice) pbPrice.textContent = fp(l.price * S.qty);
+    if (pbSave)  pbSave.textContent  = `₹${(l.orig - l.price) * S.qty} saved`;
+    if (pbTotal) pbTotal.textContent = fp(l.price * S.qty);
+  }
 }
 
 function genOtp() {
