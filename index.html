@@ -2032,7 +2032,7 @@ function vNewListing() {
         </div>
         <div class="form-field" style="margin-bottom:0">
           <label class="form-label">Number of Bags Available</label>
-          <input class="form-input" id="nl-qty" type="number" placeholder="5" min="1" max="50" value="${ev ? ev.qty : ''}">
+          <input class="form-input" id="nl-qty" type="number" placeholder="5" min="1" max="50" value="${ev ? ev.rem : ''}">
         </div>
       </div>
 
@@ -2311,10 +2311,11 @@ async function postListing() {
   const emojiMap = { bakery: '🥐', restaurant: '🍱', cafe: '☕', grocery: '🛒' };
 
   if (isEdit) {
-    // UPDATE — preserve rem proportionally: keep the number already sold
+    // UPDATE — qty input represents remaining bags; total = sold + new remaining
     const existing = DB.listings.find(x => x.id === S.editListingId);
     const sold = existing ? (existing.qty - existing.rem) : 0;
-    const newRem = Math.max(0, qty - sold);
+    const newRem = Math.max(0, qty);
+    qty = sold + newRem;
 
     const updates = {
       cat, name, description: desc, orig, price,
