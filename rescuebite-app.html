@@ -1000,8 +1000,8 @@ function render() {
 // ── Header ──────────────────
 function renderHeader() {
   const el = document.getElementById('header');
-  const backViews = { detail: 'home', checkout: 'detail', otpverify: 'checkout', newlisting: 'bizdash', bizsetup: 'profile', consumersetup: 'profile' };
-  const titles = { detail: 'Bag Details', checkout: 'Confirm Order', otpverify: 'Verify & Confirm', newlisting: 'Post a Listing', bizsetup: 'Partner Account', consumersetup: 'Your Profile', orders: 'My Orders', profile: 'My Profile' };
+  const backViews = { detail: 'home', checkout: 'detail', otpverify: 'checkout', newlisting: 'bizdash', bizsetup: 'profile', consumersetup: 'profile', consumersignin: 'profile', partnersignin: 'profile' };
+  const titles = { detail: 'Bag Details', checkout: 'Confirm Order', otpverify: 'Verify & Confirm', newlisting: 'Post a Listing', bizsetup: 'Partner Account', consumersetup: 'Your Profile', consumersignin: 'Sign In', partnersignin: 'Partner Sign In', orders: 'My Orders', profile: 'My Profile' };
 
   if (S.view === 'success') { el.innerHTML = ''; return; }
 
@@ -1056,7 +1056,7 @@ function renderTabBar() {
   const el = document.getElementById('tab-bar');
 
   // Always hide for these views
-  if (['success', 'checkout', 'otpverify', 'newlisting', 'bizsetup', 'consumersetup'].includes(S.view)) { el.innerHTML = ''; return; }
+  if (['success', 'checkout', 'otpverify', 'newlisting', 'bizsetup', 'consumersetup', 'consumersignin', 'partnersignin'].includes(S.view)) { el.innerHTML = ''; return; }
 
   // Partner tab bar
   if (S.bizMode) {
@@ -1094,7 +1094,7 @@ function renderContent() {
   void el.offsetWidth;
   el.classList.add('fade-up');
 
-  const map = { home: vHome, detail: vDetail, checkout: vCheckout, otpverify: vOtpVerify, success: vSuccess, orders: vOrders, profile: vProfile, bizdash: vBizDash, newlisting: vNewListing, bizorders: vBizOrders, bizsetup: vBizSetup, consumersetup: vConsumerSetup };
+  const map = { home: vHome, detail: vDetail, checkout: vCheckout, otpverify: vOtpVerify, success: vSuccess, orders: vOrders, profile: vProfile, bizdash: vBizDash, newlisting: vNewListing, bizorders: vBizOrders, bizsetup: vBizSetup, consumersetup: vConsumerSetup, consumersignin: vConsumerSignIn, partnersignin: vPartnerSignIn };
   el.innerHTML = (map[S.view] || vHome)();
   bindEvents();
 }
@@ -1473,6 +1473,55 @@ function vOrders() {
 // ══════════════════════════════
 //  VIEW: PROFILE
 // ══════════════════════════════
+// ══════════════════════════════
+//  VIEW: CONSUMER SIGN IN
+// ══════════════════════════════
+function vConsumerSignIn() {
+  return `
+    <div style="padding:32px 24px">
+      <div style="text-align:center;margin-bottom:28px">
+        <div style="font-size:2.8rem;margin-bottom:12px">👤</div>
+        <h2 class="jakarta" style="font-size:1.25rem;font-weight:800;color:var(--dark);margin-bottom:6px">Welcome back!</h2>
+        <p style="font-size:0.85rem;color:var(--muted);line-height:1.5">Enter the email address linked to your account.</p>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Email Address</label>
+        <input class="form-input" id="si-email" type="email" inputmode="email" placeholder="you@example.com" autocomplete="email">
+      </div>
+      <button class="btn-primary" id="si-btn" onclick="signInConsumer()" style="margin-top:8px">Sign In →</button>
+      <p style="text-align:center;font-size:0.78rem;color:var(--muted);margin-top:16px">
+        New here? <span onclick="go('consumersetup')" style="color:var(--teal);font-weight:600;cursor:pointer">Create a profile</span>
+      </p>
+    </div>`;
+}
+
+// ══════════════════════════════
+//  VIEW: PARTNER SIGN IN
+// ══════════════════════════════
+function vPartnerSignIn() {
+  return `
+    <div style="padding:32px 24px">
+      <div style="text-align:center;margin-bottom:28px">
+        <div style="font-size:2.8rem;margin-bottom:12px">🏪</div>
+        <h2 class="jakarta" style="font-size:1.25rem;font-weight:800;color:var(--dark);margin-bottom:6px">Partner Sign In</h2>
+        <p style="font-size:0.85rem;color:var(--muted);line-height:1.5">Enter the phone number linked to your partner account.</p>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Phone Number</label>
+        <div style="display:flex;gap:8px">
+          <select class="form-input" id="psi-cc" style="width:auto;flex-shrink:0;padding-right:30px">
+            ${COUNTRY_CODES.map(c => `<option value="${c.code}" ${c.code==='+91'?'selected':''}>${c.flag} ${c.code}</option>`).join('')}
+          </select>
+          <input class="form-input" id="psi-phone" type="tel" inputmode="tel" placeholder="98765 43210" style="flex:1;min-width:0" autocomplete="tel-national">
+        </div>
+      </div>
+      <button class="btn-primary" id="psi-btn" onclick="signInPartner()" style="margin-top:8px">Sign In →</button>
+      <p style="text-align:center;font-size:0.78rem;color:var(--muted);margin-top:16px">
+        New partner? <span onclick="go('bizsetup')" style="color:var(--teal);font-weight:600;cursor:pointer">Create an account</span>
+      </p>
+    </div>`;
+}
+
 function vProfile() {
   const tab = S.profileTab || 'consumer';
   const orders = getO();
@@ -1539,6 +1588,7 @@ function vProfile() {
       <div style="font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:1.2rem;color:var(--teal-dark);margin-bottom:6px">Welcome to RescueBite!</div>
       <div style="font-size:0.85rem;color:var(--muted);line-height:1.6;margin-bottom:24px">Create your profile to track rescued meals, save money stats, and get personalised picks.</div>
       <button class="btn-primary" onclick="go('consumersetup')" style="width:100%">Create Profile →</button>
+      <button class="btn-secondary" onclick="go('consumersignin')" style="width:100%;margin-top:10px">Sign In →</button>
     </div>
     <div class="profile-list" style="padding-top:4px">
       <div class="profile-item">
@@ -1585,7 +1635,8 @@ function vProfile() {
       <div style="font-size:2.2rem;margin-bottom:10px">🏪</div>
       <div style="font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:0.95rem;margin-bottom:6px">List your food, reduce waste</div>
       <div style="font-size:0.82rem;color:var(--muted);line-height:1.5;margin-bottom:16px">Join restaurants and bakeries already rescuing food on RescueBite</div>
-      <button class="btn-primary" style="font-size:0.85rem;padding:12px 20px" onclick="go('bizsetup')">Create Partner Account →</button>
+      <button class="btn-primary" style="font-size:0.85rem;padding:12px 20px;width:100%" onclick="go('bizsetup')">Create Partner Account →</button>
+      <button class="btn-secondary" style="font-size:0.85rem;padding:12px 20px;width:100%;margin-top:10px" onclick="go('partnersignin')">Sign In →</button>
     </div>`;
 
   return toggle + (tab === 'consumer' ? consumerPanel : partnerPanel);
@@ -2210,18 +2261,65 @@ function deleteConsumerProfile() {
 }
 
 function signOutConsumer() {
-  if (!confirm('Sign out? Your profile will be removed from this device. Orders are saved in the cloud.')) return;
+  if (!confirm('Sign out? Your profile will be removed from this device. Orders stay saved.')) return;
   S.user = { name: '', phone: '', email: '', countryCode: '+91' };
   localStorage.setItem('rb_user', JSON.stringify(S.user));
+  localStorage.setItem('rb_signed_out', '1'); // prevent DB re-sync on next load
   showToast('Signed out');
   go('profile');
 }
 
 function signOutPartner() {
-  if (!confirm('Sign out of partner account? You can sign back in by re-entering your details.')) return;
+  if (!confirm('Sign out of partner account? You can sign back in anytime.')) return;
   if (S.bizMode) exitBiz();
   localStorage.removeItem('rb_biz');
   showToast('Signed out of partner account');
+  go('profile');
+}
+
+async function signInConsumer() {
+  const email = document.getElementById('si-email')?.value.trim();
+  if (!email || !email.includes('@')) { showToast('Please enter a valid email address'); return; }
+  const btn = document.getElementById('si-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Searching…'; }
+
+  const { data, error } = await supa.from('consumers').select('*').eq('email', email).maybeSingle();
+  if (error || !data) {
+    showToast('No account found for that email');
+    if (btn) { btn.disabled = false; btn.textContent = 'Sign In →'; }
+    return;
+  }
+  const [cc, ...rest] = (data.phone || '').split(' ');
+  const isCC = cc && cc.startsWith('+');
+  S.user = {
+    name:        data.name        || '',
+    email:       data.email       || '',
+    phone:       isCC ? rest.join(' ') : (data.phone || ''),
+    countryCode: isCC ? cc : '+91',
+  };
+  localStorage.setItem('rb_user', JSON.stringify(S.user));
+  localStorage.removeItem('rb_signed_out');
+  showToast('Welcome back, ' + S.user.name.split(' ')[0] + '! 👋');
+  go('profile');
+}
+
+async function signInPartner() {
+  const cc    = document.getElementById('psi-cc')?.value || '+91';
+  const phone = document.getElementById('psi-phone')?.value.trim();
+  if (!phone) { showToast('Please enter your phone number'); return; }
+  const btn = document.getElementById('psi-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Searching…'; }
+
+  const fullPhone = cc + ' ' + phone;
+  const { data, error } = await supa.from('partners').select('*').eq('phone', fullPhone).maybeSingle();
+  if (error || !data) {
+    showToast('No partner account found for that number');
+    if (btn) { btn.disabled = false; btn.textContent = 'Sign In →'; }
+    return;
+  }
+  const biz = { id: data.id, name: data.name, type: data.type, area: data.area, city: data.city, contact: data.contact_name, phone: data.phone };
+  localStorage.setItem('rb_biz', JSON.stringify(biz));
+  showToast('Welcome back, ' + data.name + '! 🏪');
   go('profile');
 }
 
@@ -2300,7 +2398,9 @@ async function initDB() {
 
   // ── Consumer profile: DB → localStorage (if DB has data)
   //                      localStorage → DB (if DB is empty but local has data)
-  if (consumer) {
+  //    Skip entirely if user deliberately signed out on this device
+  const signedOut = localStorage.getItem('rb_signed_out') === '1';
+  if (consumer && !signedOut) {
     const [cc, ...rest] = (consumer.phone || '').split(' ');
     const isCC = cc && cc.startsWith('+');
     S.user = {
@@ -2310,7 +2410,7 @@ async function initDB() {
       countryCode: isCC ? cc            : (S.user.countryCode || '+91'),
     };
     localStorage.setItem('rb_user', JSON.stringify(S.user));
-  } else if (S.user.name) {
+  } else if (!signedOut && S.user.name) {
     // Local profile exists but DB has no row yet — push it up
     supa.from('consumers').upsert({
       id: CID,
