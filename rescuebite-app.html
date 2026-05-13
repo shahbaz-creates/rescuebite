@@ -2274,7 +2274,8 @@ async function initDB() {
   DB.listings = listings || [];
   DB.orders   = orders   || [];
 
-  // ── Sync consumer profile: DB wins over localStorage ──
+  // ── Consumer profile: DB → localStorage (if DB has data)
+  //                      localStorage → DB (if DB is empty but local has data)
   if (consumer) {
     const [cc, ...rest] = (consumer.phone || '').split(' ');
     const isCC = cc && cc.startsWith('+');
@@ -2285,21 +2286,51 @@ async function initDB() {
       countryCode: isCC ? cc            : (S.user.countryCode || '+91'),
     };
     localStorage.setItem('rb_user', JSON.stringify(S.user));
+  } else if (S.user.name && S.user.email) {
+    // Local profile exists but DB has no row yet — push it up
+    supa.from('consumers').upsert({
+      id: CID,
+      name: S.user.name,
+      email: S.user.email,
+      phone: (S.user.countryCode || '+91') + ' ' + S.user.phone,
+      country_code: S.user.countryCode || '+91',
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'id' }).then(({ error }) => {
+      if (error) console.warn('Consumer backfill failed:', error.message);
+    });
   }
 
-  // ── Sync partner profile: DB wins over localStorage ──
+  // ── Partner profile: DB → localStorage (if DB has data)
+  //                    localStorage → DB (if DB is empty but local has data)
   if (partner) {
     const existing = getBizProfile() || {};
     const biz = {
       id:      partner.id,
-      name:    partner.name    || existing.name,
-      type:    partner.type    || existing.type,
-      area:    partner.area    || existing.area,
-      city:    partner.city    || existing.city,
+      name:    partner.name         || existing.name,
+      type:    partner.type         || existing.type,
+      area:    partner.area         || existing.area,
+      city:    partner.city         || existing.city,
       contact: partner.contact_name || existing.contact,
-      phone:   partner.phone   || existing.phone,
+      phone:   partner.phone        || existing.phone,
     };
     localStorage.setItem('rb_biz', JSON.stringify(biz));
+  } else if (localBizId) {
+    // Local partner exists but DB has no row yet — push it up
+    const biz = getBizProfile();
+    if (biz) {
+      supa.from('partners').upsert({
+        id: biz.id,
+        name: biz.name,
+        type: biz.type,
+        area: biz.area,
+        city: biz.city,
+        contact_name: biz.contact,
+        phone: biz.phone,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'id' }).then(({ error }) => {
+        if (error) console.warn('Partner backfill failed:', error.message);
+      });
+    }
   }
 
   S.loading = false;
