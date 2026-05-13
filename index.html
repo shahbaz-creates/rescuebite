@@ -868,7 +868,7 @@
 // ══════════════════════════════
 //  SUPABASE
 // ══════════════════════════════
-const RAZORPAY_KEY = 'rzp_test_YOUR_KEY_HERE';
+const RAZORPAY_KEY = 'rzp_test_SowzPFa01SG9G0';
 
 const SUPA_URL = 'https://lygnbqosegbivlcxegkq.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx5Z25icW9zZWdiaXZsY3hlZ2txIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgwODcwOTYsImV4cCI6MjA5MzY2MzA5Nn0.vI6HVo8-boowvVfizJDzqcqomFWxF8pz2Ve7e093LDQ';
@@ -2229,24 +2229,41 @@ function openRazorpay() {
   const btn = document.getElementById('confirm-btn');
   if (btn) { btn.disabled = true; btn.textContent = 'Opening payment…'; }
 
-  const rzp = new Razorpay({
-    key: RAZORPAY_KEY,
-    amount: grandTotal * 100, // paise
-    currency: 'INR',
-    name: 'RescueBite',
-    description: `${items.length} rescue bag${items.length > 1 ? 's' : ''}`,
-    prefill: { name, email, contact: cc.replace('+', '') + phone },
-    theme: { color: '#00695f' },
-    handler: function(response) {
-      completeOrderAfterPayment(response.razorpay_payment_id);
-    },
-    modal: {
-      ondismiss: function() {
-        if (btn) { btn.disabled = false; btn.textContent = `Pay ${fp(grandTotal)} with Razorpay`; }
+  if (typeof Razorpay === 'undefined') {
+    showToast('Payment not loaded — please refresh and try again');
+    if (btn) { btn.disabled = false; btn.textContent = `Pay ${fp(grandTotal)} with Razorpay`; }
+    return;
+  }
+
+  try {
+    const rzp = new Razorpay({
+      key: RAZORPAY_KEY,
+      amount: Math.round(grandTotal * 100),
+      currency: 'INR',
+      name: 'RescueBite',
+      description: `${items.length} rescue bag${items.length > 1 ? 's' : ''}`,
+      prefill: { name, email, contact: cc.replace('+', '') + phone },
+      theme: { color: '#00695f' },
+      handler: function(response) {
+        completeOrderAfterPayment(response.razorpay_payment_id);
+      },
+      modal: {
+        ondismiss: function() {
+          if (btn) { btn.disabled = false; btn.textContent = `Pay ${fp(grandTotal)} with Razorpay`; }
+        }
       }
-    }
-  });
-  rzp.open();
+    });
+    rzp.on('payment.failed', function(response) {
+      console.error('Razorpay error:', response.error);
+      showToast('Payment failed: ' + (response.error.description || response.error.reason || 'please try again'));
+      if (btn) { btn.disabled = false; btn.textContent = `Pay ${fp(grandTotal)} with Razorpay`; }
+    });
+    rzp.open();
+  } catch (e) {
+    console.error('Razorpay init error:', e);
+    showToast('Could not open payment — ' + e.message);
+    if (btn) { btn.disabled = false; btn.textContent = `Pay ${fp(grandTotal)} with Razorpay`; }
+  }
 }
 
 async function completeOrderAfterPayment(paymentId) {
