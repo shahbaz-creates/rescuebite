@@ -1941,7 +1941,7 @@ function enterBiz() {
 }
 function exitBiz()  { S.bizMode = false; go('home'); }
 
-function saveBizAccount() {
+async function saveBizAccount() {
   const name    = document.getElementById('bs-name')?.value.trim();
   const type    = document.getElementById('bs-type')?.value;
   const area    = document.getElementById('bs-area')?.value.trim();
@@ -1949,9 +1949,24 @@ function saveBizAccount() {
   const contact = document.getElementById('bs-contact')?.value.trim();
   const phone   = document.getElementById('bs-phone')?.value.trim();
   if (!name || !area) { showToast('Please fill in business name and area'); return; }
+
+  const btn = document.getElementById('bs-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+
   const existing = getBizProfile();
   const biz = { id: existing ? existing.id : ('b_' + Date.now().toString(36)), name, type, area, city, contact, phone };
   localStorage.setItem('rb_biz', JSON.stringify(biz));
+
+  // Persist to Supabase
+  const { error } = await supa.from('partners').upsert({
+    id: biz.id, name, type, area, city,
+    contact_name: contact,
+    phone,
+    updated_at: new Date().toISOString(),
+  }, { onConflict: 'id' });
+
+  if (error) console.warn('Partner profile DB sync failed:', error.message);
+
   showToast(existing ? 'Business details updated ✓' : 'Partner account created! Welcome 🎉');
   go('bizdash');
 }
@@ -1994,9 +2009,17 @@ async function confirmOrder(lid) {
   const btn = document.getElementById('confirm-btn');
   if (btn) { btn.disabled = true; btn.textContent = 'Generating code…'; }
 
-  // Save user details
+  // Save user details locally + sync to DB
   S.user = { ...S.user, name, email, phone, countryCode: cc };
   localStorage.setItem('rb_user', JSON.stringify(S.user));
+  supa.from('consumers').upsert({
+    id: CID, name, email,
+    phone: cc + ' ' + phone,
+    country_code: cc,
+    updated_at: new Date().toISOString(),
+  }, { onConflict: 'id' }).then(({ error }) => {
+    if (error) console.warn('Consumer DB sync at checkout failed:', error.message);
+  });
 
   // Build pending order (inserted only after OTP confirmed)
   const orderId = uid();
@@ -2141,7 +2164,7 @@ async function markDone(id) {
   render();
 }
 
-function saveConsumerProfile() {
+async function saveConsumerProfile() {
   const name  = document.getElementById('cs-name')?.value.trim();
   const email = document.getElementById('cs-email')?.value.trim();
   const cc    = document.getElementById('cs-cc')?.value;
@@ -2149,8 +2172,23 @@ function saveConsumerProfile() {
   if (!name) { showToast('Please enter your name'); return; }
   if (!email || !email.includes('@')) { showToast('Please enter a valid email'); return; }
   if (!phone) { showToast('Please enter your phone number'); return; }
+
+  const btn = document.getElementById('cs-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+
   S.user = { ...S.user, name, email, phone, countryCode: cc };
   localStorage.setItem('rb_user', JSON.stringify(S.user));
+
+  // Persist to Supabase
+  const { error } = await supa.from('consumers').upsert({
+    id: CID, name, email,
+    phone: cc + ' ' + phone,
+    country_code: cc,
+    updated_at: new Date().toISOString(),
+  }, { onConflict: 'id' });
+
+  if (error) console.warn('Consumer profile DB sync failed:', error.message);
+
   showToast('Profile saved! Welcome, ' + name.split(' ')[0] + ' 👋');
   go('profile');
 }
