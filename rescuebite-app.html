@@ -2286,17 +2286,18 @@ async function initDB() {
       countryCode: isCC ? cc            : (S.user.countryCode || '+91'),
     };
     localStorage.setItem('rb_user', JSON.stringify(S.user));
-  } else if (S.user.name && S.user.email) {
+  } else if (S.user.name) {
     // Local profile exists but DB has no row yet — push it up
     supa.from('consumers').upsert({
       id: CID,
-      name: S.user.name,
-      email: S.user.email,
-      phone: (S.user.countryCode || '+91') + ' ' + S.user.phone,
+      name:         S.user.name        || null,
+      email:        S.user.email       || null,
+      phone:        S.user.phone ? (S.user.countryCode || '+91') + ' ' + S.user.phone : null,
       country_code: S.user.countryCode || '+91',
-      updated_at: new Date().toISOString(),
+      updated_at:   new Date().toISOString(),
     }, { onConflict: 'id' }).then(({ error }) => {
       if (error) console.warn('Consumer backfill failed:', error.message);
+      else console.log('Consumer backfilled to DB ✓');
     });
   }
 
@@ -2317,18 +2318,19 @@ async function initDB() {
   } else if (localBizId) {
     // Local partner exists but DB has no row yet — push it up
     const biz = getBizProfile();
-    if (biz) {
+    if (biz && biz.name) {
       supa.from('partners').upsert({
-        id: biz.id,
-        name: biz.name,
-        type: biz.type,
-        area: biz.area,
-        city: biz.city,
-        contact_name: biz.contact,
-        phone: biz.phone,
-        updated_at: new Date().toISOString(),
+        id:           biz.id,
+        name:         biz.name         || null,
+        type:         biz.type         || null,
+        area:         biz.area         || null,
+        city:         biz.city         || null,
+        contact_name: biz.contact      || null,
+        phone:        biz.phone        || null,
+        updated_at:   new Date().toISOString(),
       }, { onConflict: 'id' }).then(({ error }) => {
         if (error) console.warn('Partner backfill failed:', error.message);
+        else console.log('Partner backfilled to DB ✓');
       });
     }
   }
