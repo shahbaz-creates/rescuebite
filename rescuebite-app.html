@@ -923,6 +923,7 @@ const S = {
   order: null,
   pendingOrder: null,
   otpEmail: '', otpCode: null, otpExpiry: null,
+  editListingId: null,
   loading: true,
   dbError: false,
   user: JSON.parse(localStorage.getItem('rb_user') || 'null') || { name: '', phone: '', email: '', countryCode: '+91' },
@@ -966,6 +967,17 @@ function fmtTime(t) {
   return `${h % 12 || 12}:${String(m).padStart(2,'0')} ${h >= 12 ? 'PM' : 'AM'}`;
 }
 
+// "7:00 PM" → "19:00"  (reverses fmtTime for pre-filling time inputs)
+function parse12to24(str) {
+  if (!str) return '';
+  const parts = str.trim().split(' ');
+  if (parts.length < 2) return str;
+  let [h, m] = parts[0].split(':').map(Number);
+  if (parts[1] === 'PM' && h !== 12) h += 12;
+  if (parts[1] === 'AM' && h === 12) h = 0;
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+}
+
 // Returns true if the pickup window has closed (available_until is in the past today)
 function isExpired(timeStr) {
   if (!timeStr) return false;
@@ -1001,7 +1013,7 @@ function render() {
 function renderHeader() {
   const el = document.getElementById('header');
   const backViews = { detail: 'home', checkout: 'detail', otpverify: 'checkout', newlisting: 'bizdash', bizsetup: 'profile', consumersetup: 'profile', consumersignin: 'profile', partnersignin: 'profile' };
-  const titles = { detail: 'Bag Details', checkout: 'Confirm Order', otpverify: 'Verify & Confirm', newlisting: 'Post a Listing', bizsetup: 'Partner Account', consumersetup: 'Your Profile', consumersignin: 'Sign In', partnersignin: 'Partner Sign In', orders: 'My Orders', profile: 'My Profile' };
+  const titles = { detail: 'Bag Details', checkout: 'Confirm Order', otpverify: 'Verify & Confirm', newlisting: S.editListingId ? 'Edit Listing' : 'Post a Listing', bizsetup: 'Partner Account', consumersetup: 'Your Profile', consumersignin: 'Sign In', partnersignin: 'Partner Sign In', orders: 'My Orders', profile: 'My Profile' };
 
   if (S.view === 'success') { el.innerHTML = ''; return; }
 
@@ -1009,7 +1021,7 @@ function renderHeader() {
     const dest = backViews[S.view];
     el.innerHTML = `
       <div class="header-main">
-        <div class="back-btn" onclick="go('${dest}')">Back</div>
+        <div class="back-btn" onclick="S.editListingId=null;go('${dest}')">Back</div>
         <div class="header-title">${titles[S.view]}</div>
         <div style="width:56px"></div>
       </div>`;
@@ -1687,6 +1699,7 @@ function vBizDash() {
           <span class="blc-tag sold">✓ ${l.qty - l.rem} sold</span>
           <span class="blc-tag rem">${l.rem} remaining</span>
           <span class="blc-tag">${pct(l.orig, l.price)}</span>
+          <span class="blc-tag" onclick="go('newlisting',{editListingId:'${l.id}'})" style="cursor:pointer;color:var(--teal);background:rgba(0,109,119,0.08)">✏️ Edit</span>
           <span class="blc-tag del-btn" onclick="deleteListing('${l.id}')">🗑 Remove</span>
         </div>
       </div>`).join('')}
@@ -1882,7 +1895,17 @@ function vBizSetup() {
 //  VIEW: NEW LISTING
 // ══════════════════════════════
 function vNewListing() {
-  const biz = getBizProfile();
+  const biz  = getBizProfile();
+  const edit = S.editListingId ? DB.listings.find(x => x.id === S.editListingId) : null;
+  const ev   = edit ? mapL(edit) : null; // mapped values for pre-fill
+
+  // Parse pickup window back to 24h for time inputs: "7:00 PM – 9:00 PM"
+  let preFrom = '19:00', preUntil = '21:00';
+  if (ev && ev.window) {
+    const [fromStr, untilStr] = ev.window.split(' – ');
+    preFrom  = parse12to24(fromStr)  || '19:00';
+    preUntil = parse12to24(untilStr) || '21:00';
+  }
 
   // Map business type → allowed listing categories
   const BIZ_CAT_MAP = {
@@ -1910,6 +1933,7 @@ function vNewListing() {
   const single = filteredCats.length === 1;
 
   // If only one category matches, show a locked badge; otherwise show a filtered dropdown
+  const editCat = ev?.cat || '';
   const catField = single
     ? `<div style="display:flex;align-items:center;gap:10px;padding:10px 13px;background:var(--cream);border-radius:10px;border:1.5px solid var(--cream-dark)">
          <span style="font-size:1rem">${filteredCats[0].label.split(' ')[0]}</span>
@@ -1918,7 +1942,7 @@ function vNewListing() {
          <span style="margin-left:auto;font-size:0.68rem;font-weight:700;color:var(--teal);background:rgba(0,109,119,0.1);padding:2px 8px;border-radius:1rem">Auto</span>
        </div>`
     : `<select class="form-input" id="nl-cat">
-         ${filteredCats.map(c => `<option value="${c.value}">${c.label}</option>`).join('')}
+         ${filteredCats.map(c => `<option value="${c.value}" ${c.value===editCat?'selected':''}>${c.label}</option>`).join('')}
        </select>`;
 
   return `
@@ -1927,7 +1951,7 @@ function vNewListing() {
         <div class="co-section-title">Bag Details</div>
         <div class="form-field">
           <label class="form-label">Bag Name</label>
-          <input class="form-input" id="nl-name" placeholder="e.g. Surprise Pastry Bag">
+          <input class="form-input" id="nl-name" placeholder="e.g. Surprise Pastry Bag" value="${ev ? ev.name : ''}">
         </div>
         <div class="form-field">
           <label class="form-label">Category</label>
@@ -1935,7 +1959,7 @@ function vNewListing() {
         </div>
         <div class="form-field" style="margin-bottom:0">
           <label class="form-label">Description</label>
-          <textarea class="form-input" id="nl-desc" placeholder="What's typically inside? How did it become surplus?"></textarea>
+          <textarea class="form-input" id="nl-desc" placeholder="What's typically inside? How did it become surplus?">${ev ? ev.desc : ''}</textarea>
         </div>
       </div>
 
@@ -1944,16 +1968,16 @@ function vNewListing() {
         <div class="grid-2">
           <div class="form-field">
             <label class="form-label">Original Price (₹)</label>
-            <input class="form-input" id="nl-orig" type="number" placeholder="500" min="1">
+            <input class="form-input" id="nl-orig" type="number" placeholder="500" min="1" value="${ev ? ev.orig : ''}">
           </div>
           <div class="form-field">
             <label class="form-label">Rescue Price (₹)</label>
-            <input class="form-input" id="nl-price" type="number" placeholder="199" min="1">
+            <input class="form-input" id="nl-price" type="number" placeholder="199" min="1" value="${ev ? ev.price : ''}">
           </div>
         </div>
         <div class="form-field" style="margin-bottom:0">
           <label class="form-label">Number of Bags Available</label>
-          <input class="form-input" id="nl-qty" type="number" placeholder="5" min="1" max="50">
+          <input class="form-input" id="nl-qty" type="number" placeholder="5" min="1" max="50" value="${ev ? ev.qty : ''}">
         </div>
       </div>
 
@@ -1962,17 +1986,17 @@ function vNewListing() {
         <div class="grid-2">
           <div class="form-field">
             <label class="form-label">From</label>
-            <input class="form-input" id="nl-from" type="time" value="19:00">
+            <input class="form-input" id="nl-from" type="time" value="${preFrom}">
           </div>
           <div class="form-field" style="margin-bottom:0">
             <label class="form-label">Until</label>
-            <input class="form-input" id="nl-until" type="time" value="21:00">
+            <input class="form-input" id="nl-until" type="time" value="${preUntil}">
           </div>
         </div>
       </div>
 
-      <button class="btn-primary" id="post-btn" onclick="postListing()">🚀 Post Listing</button>
-      <p style="text-align:center;font-size:0.72rem;color:var(--muted);margin-top:8px">Customers nearby will see this immediately</p>
+      <button class="btn-primary" id="post-btn" onclick="postListing()">${ev ? '💾 Save Changes' : '🚀 Post Listing'}</button>
+      <p style="text-align:center;font-size:0.72rem;color:var(--muted);margin-top:8px">${ev ? 'Changes go live immediately' : 'Customers nearby will see this immediately'}</p>
     </div>`;
 }
 
@@ -2180,28 +2204,60 @@ async function postListing() {
   if (qty < 1)       { showToast('Quantity must be at least 1'); return; }
 
   const btn = document.getElementById('post-btn');
-  if (btn) { btn.disabled = true; btn.textContent = 'Posting…'; }
+  const isEdit = !!S.editListingId;
+
+  if (btn) { btn.disabled = true; btn.textContent = isEdit ? 'Saving…' : 'Posting…'; }
 
   const emojiMap = { bakery: '🥐', restaurant: '🍱', cafe: '☕', grocery: '🛒' };
-  const listingRow = {
-    id: 'l' + Date.now(), biz_id: biz.id, biz_name: biz.name, biz_type: biz.type,
-    emoji: emojiMap[cat] || '🍽️', cat, name, description: desc,
-    contents: ['Fresh daily items', 'Quality assured', 'Same-day pickup only'],
-    orig, price, available_until: until,
-    pickup_window: fmtTime(from) + ' – ' + fmtTime(until),
-    qty, rem: qty, city: biz.city, area: biz.area,
-    rating: 4.8, reviews: 0,
-  };
 
-  const { error } = await supa.from('listings').insert(listingRow);
-  if (error) {
-    showToast('Error posting listing — please try again');
-    if (btn) { btn.disabled = false; btn.textContent = '🚀 Post Listing'; }
-    return;
+  if (isEdit) {
+    // UPDATE — preserve rem proportionally: keep the number already sold
+    const existing = DB.listings.find(x => x.id === S.editListingId);
+    const sold = existing ? (existing.qty - existing.rem) : 0;
+    const newRem = Math.max(0, qty - sold);
+
+    const updates = {
+      cat, name, description: desc, orig, price,
+      emoji: emojiMap[cat] || '🍽️',
+      available_until: until,
+      pickup_window: fmtTime(from) + ' – ' + fmtTime(until),
+      qty, rem: newRem,
+    };
+
+    const { error } = await supa.from('listings').update(updates).eq('id', S.editListingId);
+    if (error) {
+      showToast('Error saving changes — please try again');
+      if (btn) { btn.disabled = false; btn.textContent = '💾 Save Changes'; }
+      return;
+    }
+
+    // Update in-memory cache
+    if (existing) Object.assign(existing, updates);
+    showToast('Listing updated ✓');
+  } else {
+    // INSERT
+    const listingRow = {
+      id: 'l' + Date.now(), biz_id: biz.id, biz_name: biz.name, biz_type: biz.type,
+      emoji: emojiMap[cat] || '🍽️', cat, name, description: desc,
+      contents: ['Fresh daily items', 'Quality assured', 'Same-day pickup only'],
+      orig, price, available_until: until,
+      pickup_window: fmtTime(from) + ' – ' + fmtTime(until),
+      qty, rem: qty, city: biz.city, area: biz.area,
+      rating: 4.8, reviews: 0,
+    };
+
+    const { error } = await supa.from('listings').insert(listingRow);
+    if (error) {
+      showToast('Error posting listing — please try again');
+      if (btn) { btn.disabled = false; btn.textContent = '🚀 Post Listing'; }
+      return;
+    }
+
+    DB.listings.push(listingRow);
+    showToast('Listing posted! Customers can see it now.');
   }
 
-  DB.listings.push(listingRow);
-  showToast('Listing posted! Customers can see it now.');
+  S.editListingId = null;
   go('bizdash');
 }
 
