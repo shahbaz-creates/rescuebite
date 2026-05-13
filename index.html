@@ -2248,9 +2248,20 @@ async function initDB() {
   S.dbError = false;
   render();
 
-  const [{ data: listings, error: le }, { data: orders, error: oe }] = await Promise.all([
+  // Fetch core data + both profile types in parallel
+  const localBizId = getBizProfile()?.id || null;
+  const [
+    { data: listings, error: le },
+    { data: orders,   error: oe },
+    { data: consumer },
+    { data: partner  },
+  ] = await Promise.all([
     supa.from('listings').select('*').order('created_at'),
     supa.from('orders').select('*').order('created_at', { ascending: false }),
+    supa.from('consumers').select('*').eq('id', CID).maybeSingle(),
+    localBizId
+      ? supa.from('partners').select('*').eq('id', localBizId).maybeSingle()
+      : Promise.resolve({ data: null }),
   ]);
 
   if (le || oe) {
@@ -2262,7 +2273,36 @@ async function initDB() {
 
   DB.listings = listings || [];
   DB.orders   = orders   || [];
-  S.loading   = false;
+
+  // ── Sync consumer profile: DB wins over localStorage ──
+  if (consumer) {
+    const [cc, ...rest] = (consumer.phone || '').split(' ');
+    const isCC = cc && cc.startsWith('+');
+    S.user = {
+      name:        consumer.name        || S.user.name,
+      email:       consumer.email       || S.user.email,
+      phone:       isCC ? rest.join(' ') : (consumer.phone || S.user.phone),
+      countryCode: isCC ? cc            : (S.user.countryCode || '+91'),
+    };
+    localStorage.setItem('rb_user', JSON.stringify(S.user));
+  }
+
+  // ── Sync partner profile: DB wins over localStorage ──
+  if (partner) {
+    const existing = getBizProfile() || {};
+    const biz = {
+      id:      partner.id,
+      name:    partner.name    || existing.name,
+      type:    partner.type    || existing.type,
+      area:    partner.area    || existing.area,
+      city:    partner.city    || existing.city,
+      contact: partner.contact_name || existing.contact,
+      phone:   partner.phone   || existing.phone,
+    };
+    localStorage.setItem('rb_biz', JSON.stringify(biz));
+  }
+
+  S.loading = false;
   render();
 }
 
