@@ -920,10 +920,11 @@ const S = {
   profileTab: 'consumer',
   qty: 1,
   bizMode: false,
-  order: null,
-  pendingOrder: null,
+  orders: [],
+  pendingOrders: [],
   otpEmail: '', otpCode: null, otpExpiry: null,
   editListingId: null,
+  cart: JSON.parse(localStorage.getItem('rb_cart') || '[]'),
   loading: true,
   dbError: false,
   user: JSON.parse(localStorage.getItem('rb_user') || 'null') || { name: '', phone: '', email: '', countryCode: '+91' },
@@ -991,10 +992,11 @@ function isExpired(timeStr) {
 //  ROUTER
 // ══════════════════════════════
 // Consumer-only views — redirect to partner dashboard when in biz mode
-const CONSUMER_VIEWS = ['home', 'detail', 'checkout', 'success', 'orders'];
+const CONSUMER_VIEWS = ['home', 'detail', 'cart', 'checkout', 'success', 'orders'];
 
 function go(view, data = {}) {
   if (S.bizMode && CONSUMER_VIEWS.includes(view)) { view = 'bizdash'; data = {}; }
+  if (view === 'detail') S.qty = 1; // reset qty counter for each new detail view
   Object.assign(S, data, { view });
   render();
   document.getElementById('content').scrollTop = 0;
@@ -1012,8 +1014,8 @@ function render() {
 // ── Header ──────────────────
 function renderHeader() {
   const el = document.getElementById('header');
-  const backViews = { detail: 'home', checkout: 'detail', otpverify: 'checkout', newlisting: 'bizdash', bizsetup: 'profile', consumersetup: 'profile', consumersignin: 'profile', partnersignin: 'profile' };
-  const titles = { detail: 'Bag Details', checkout: 'Confirm Order', otpverify: 'Verify & Confirm', newlisting: S.editListingId ? 'Edit Listing' : 'Post a Listing', bizsetup: 'Partner Account', consumersetup: 'Your Profile', consumersignin: 'Sign In', partnersignin: 'Partner Sign In', orders: 'My Orders', profile: 'My Profile' };
+  const backViews = { detail: 'home', cart: 'home', checkout: 'cart', otpverify: 'checkout', newlisting: 'bizdash', bizsetup: 'profile', consumersetup: 'profile', consumersignin: 'profile', partnersignin: 'profile' };
+  const titles = { detail: 'Bag Details', cart: 'My Cart', checkout: 'Confirm Order', otpverify: 'Verify & Confirm', newlisting: S.editListingId ? 'Edit Listing' : 'Post a Listing', bizsetup: 'Partner Account', consumersetup: 'Your Profile', consumersignin: 'Sign In', partnersignin: 'Partner Sign In', orders: 'My Orders', profile: 'My Profile' };
 
   if (S.view === 'success') { el.innerHTML = ''; return; }
 
@@ -1049,8 +1051,8 @@ function renderHeader() {
     <div class="header-main">
       <div class="logo" onclick="go('home')"><span class="logo-dot"></span>RescueBite</div>
       <div class="header-right">
-        <button class="icon-btn" onclick="go('orders')" title="My orders">
-          🧺${active > 0 ? `<span class="badge">${active}</span>` : ''}
+        <button class="icon-btn" onclick="go('cart')" title="My cart">
+          🛒${S.cart.length > 0 ? `<span class="badge">${S.cart.reduce((s,i)=>s+i.qty,0)}</span>` : ''}
         </button>
         <button class="icon-btn" onclick="go('profile')" title="Profile">👤</button>
       </div>
@@ -1068,7 +1070,7 @@ function renderTabBar() {
   const el = document.getElementById('tab-bar');
 
   // Always hide for these views
-  if (['success', 'checkout', 'otpverify', 'newlisting', 'bizsetup', 'consumersetup', 'consumersignin', 'partnersignin'].includes(S.view)) { el.innerHTML = ''; return; }
+  if (['success', 'checkout', 'cart', 'otpverify', 'newlisting', 'bizsetup', 'consumersetup', 'consumersignin', 'partnersignin'].includes(S.view)) { el.innerHTML = ''; return; }
 
   // Partner tab bar
   if (S.bizMode) {
@@ -1106,7 +1108,7 @@ function renderContent() {
   void el.offsetWidth;
   el.classList.add('fade-up');
 
-  const map = { home: vHome, detail: vDetail, checkout: vCheckout, otpverify: vOtpVerify, success: vSuccess, orders: vOrders, profile: vProfile, bizdash: vBizDash, newlisting: vNewListing, bizorders: vBizOrders, bizsetup: vBizSetup, consumersetup: vConsumerSetup, consumersignin: vConsumerSignIn, partnersignin: vPartnerSignIn };
+  const map = { home: vHome, detail: vDetail, cart: vCart, checkout: vCheckout, otpverify: vOtpVerify, success: vSuccess, orders: vOrders, profile: vProfile, bizdash: vBizDash, newlisting: vNewListing, bizorders: vBizOrders, bizsetup: vBizSetup, consumersetup: vConsumerSetup, consumersignin: vConsumerSignIn, partnersignin: vPartnerSignIn };
   el.innerHTML = (map[S.view] || vHome)();
   bindEvents();
 }
@@ -1275,11 +1277,79 @@ function vDetail() {
         </div>
       </div>
     </div>
-    <div style="height:80px"></div>
+    <div style="height:100px"></div>
     <div class="sticky-cta">
-      ${l.rem > 0
-        ? `<button class="btn-primary" onclick="go('checkout',{listingId:'${l.id}',qty:1})">Reserve Bag — ${fp(l.price)} →</button>`
-        : `<button class="btn-primary" disabled>Sold Out</button>`}
+      ${l.rem > 0 ? `
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+          <div style="display:flex;align-items:center;gap:0;border:1.5px solid var(--cream-dark);border-radius:10px;overflow:hidden">
+            <button class="qty-btn" onclick="changeQty(-1)" style="border-radius:0;border:none">−</button>
+            <span class="qty-val" id="qty-val" style="min-width:32px;text-align:center">${S.qty}</span>
+            <button class="qty-btn" onclick="changeQty(1)" style="border-radius:0;border:none">+</button>
+          </div>
+          <button class="btn-primary" style="flex:1" onclick="addToCart('${l.id}')">
+            Add to Cart 🛒 — ${fp(l.price * S.qty)}
+          </button>
+        </div>` : `<button class="btn-primary" disabled>Sold Out</button>`}
+    </div>`;
+}
+
+// ══════════════════════════════
+//  VIEW: CART
+// ══════════════════════════════
+function vCart() {
+  const items = S.cart.map(ci => ({ ...ci, listing: getL().find(l => l.id === ci.listingId) })).filter(ci => ci.listing);
+  if (items.length === 0) return `
+    <div class="empty" style="padding-top:60px">
+      <div style="font-size:4rem;margin-bottom:16px">🛒</div>
+      <div class="empty-title">Your cart is empty</div>
+      <div class="empty-desc">Browse available bags and add them to your cart before checking out.</div>
+      <div style="margin-top:16px;width:100%;padding:0 28px"><button class="btn-primary" onclick="go('home')">Browse Bags →</button></div>
+    </div>`;
+
+  const grandTotal   = items.reduce((s, ci) => s + ci.listing.price * ci.qty, 0);
+  const grandOrig    = items.reduce((s, ci) => s + ci.listing.orig  * ci.qty, 0);
+  const totalSaved   = grandOrig - grandTotal;
+
+  return `
+    <div style="padding:12px 0 120px">
+      ${items.map(ci => { const l = ci.listing; return `
+        <div style="margin:0 16px 12px;background:var(--cream);border-radius:var(--radius-lg);padding:14px 16px">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+            <div class="op-emoji ${catCls(l.cat)}" style="width:44px;height:44px;font-size:1.4rem">${l.emoji}</div>
+            <div style="flex:1;min-width:0">
+              <div style="font-weight:700;font-size:0.92rem;color:var(--dark);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${l.name}</div>
+              <div style="font-size:0.75rem;color:var(--muted)">${l.bizName} · ${l.area}</div>
+              <div style="font-size:0.72rem;color:var(--teal);margin-top:2px">🕐 ${l.window}</div>
+            </div>
+            <div style="text-align:right">
+              <div style="font-weight:800;font-size:0.95rem;color:var(--dark)">${fp(l.price * ci.qty)}</div>
+              <div style="font-size:0.7rem;text-decoration:line-through;color:var(--muted)">${fp(l.orig * ci.qty)}</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <div style="display:flex;align-items:center;gap:0;border:1.5px solid var(--cream-dark);border-radius:10px;overflow:hidden;background:white">
+              <button class="qty-btn" onclick="updateCartQty('${l.id}',-1)" style="border-radius:0;border:none">−</button>
+              <span style="min-width:32px;text-align:center;font-weight:700;font-size:0.9rem">${ci.qty}</span>
+              <button class="qty-btn" onclick="updateCartQty('${l.id}',1)" style="border-radius:0;border:none">+</button>
+            </div>
+            <span onclick="removeFromCart('${l.id}')" style="font-size:0.78rem;color:var(--terra);font-weight:600;cursor:pointer">🗑 Remove</span>
+          </div>
+        </div>`;
+      }).join('')}
+
+      <div style="margin:4px 16px 0;background:var(--cream);border-radius:var(--radius-lg);padding:14px 16px">
+        <div style="display:flex;justify-content:space-between;font-size:0.82rem;color:var(--muted);margin-bottom:6px">
+          <span>You save</span><span style="color:var(--teal);font-weight:600">${fp(totalSaved)}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-weight:800;font-size:1.05rem;color:var(--dark)">
+          <span>Total to pay</span><span>${fp(grandTotal)}</span>
+        </div>
+        <div style="font-size:0.7rem;color:var(--muted);margin-top:4px;text-align:right">Pay at pickup · No advance payment</div>
+      </div>
+
+      <div style="position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;padding:16px 20px;background:white;border-top:1px solid rgba(0,0,0,0.06)">
+        <button class="btn-primary" onclick="go('checkout')">Confirm & Checkout — ${fp(grandTotal)} →</button>
+      </div>
     </div>`;
 }
 
@@ -1287,43 +1357,24 @@ function vDetail() {
 //  VIEW: CHECKOUT
 // ══════════════════════════════
 function vCheckout() {
-  const l = getL().find(x => x.id === S.listingId);
-  if (!l) return '';
-  const qty   = S.qty || 1;
-  const total = l.price * qty;
+  const items = S.cart.map(ci => ({ ...ci, listing: getL().find(l => l.id === ci.listingId) })).filter(ci => ci.listing);
+  if (items.length === 0) { go('cart'); return ''; }
+  const grandTotal = items.reduce((s, ci) => s + ci.listing.price * ci.qty, 0);
+  const grandOrig  = items.reduce((s, ci) => s + ci.listing.orig  * ci.qty, 0);
 
   return `
     <div style="padding-top:8px;padding-bottom:20px">
       <div class="co-section">
-        <div class="co-section-title">Your Order</div>
-        <div class="order-preview">
-          <div class="op-emoji ${catCls(l.cat)}">${l.emoji}</div>
-          <div class="op-info" style="flex:1">
-            <div class="op-name">${l.name}</div>
-            <div class="op-biz">${l.bizName}</div>
-          </div>
-          <div class="op-price">${fp(total)}</div>
-        </div>
-        <div class="qty-row">
-          <div class="qty-lbl">Quantity</div>
-          <div class="qty-ctrl">
-            <button class="qty-btn" onclick="changeQty(-1)">−</button>
-            <span class="qty-val" id="qty-val">${qty}</span>
-            <button class="qty-btn" onclick="changeQty(1)">+</button>
-          </div>
-        </div>
-      </div>
-
-      <div class="co-section">
-        <div class="co-section-title">Pickup Details</div>
-        <div class="info-row" style="margin-bottom:0">
-          <div class="info-icon">🕐</div>
-          <div><div class="info-label">Pickup window</div><div class="info-val">${l.window}</div></div>
-        </div>
-        <div class="info-row" style="margin-top:10px;margin-bottom:0">
-          <div class="info-icon">📍</div>
-          <div><div class="info-label">Location</div><div class="info-val">${l.bizName}, ${l.area}</div></div>
-        </div>
+        <div class="co-section-title">Order Summary (${items.length} item${items.length>1?'s':''})</div>
+        ${items.map(ci => { const l = ci.listing; return `
+          <div class="order-preview" style="margin-bottom:8px">
+            <div class="op-emoji ${catCls(l.cat)}">${l.emoji}</div>
+            <div class="op-info" style="flex:1">
+              <div class="op-name">${l.name}</div>
+              <div class="op-biz">${l.bizName} · Qty ${ci.qty}</div>
+            </div>
+            <div class="op-price">${fp(l.price * ci.qty)}</div>
+          </div>`;}).join('')}
       </div>
 
       <div class="co-section">
@@ -1340,7 +1391,7 @@ function vCheckout() {
           <label class="form-label">Phone Number</label>
           <div style="display:flex;gap:8px">
             <select class="form-input" id="co-cc" style="width:auto;flex-shrink:0;padding-right:30px">
-              ${COUNTRY_CODES.map(c => `<option value="${c.code}" ${c.code === (S.user.countryCode || '+91') ? 'selected' : ''}>${c.flag} ${c.code}</option>`).join('')}
+              ${COUNTRY_CODES.map(c => `<option value="${c.code}" ${c.code===(S.user.countryCode||'+91')?'selected':''}>${c.flag} ${c.code}</option>`).join('')}
             </select>
             <input class="form-input" id="co-phone" type="tel" placeholder="98765 43210" value="${S.user.phone}" autocomplete="tel-national" style="flex:1;min-width:0">
           </div>
@@ -1349,23 +1400,24 @@ function vCheckout() {
 
       <div class="co-section">
         <div class="co-section-title">Price Summary</div>
-        <div class="price-summary-row">
-          <span class="ps-lbl">Rescue price × ${qty}</span>
-          <span>${fp(l.price)} × ${qty}</span>
-        </div>
+        ${items.map(ci => `
+          <div class="price-summary-row">
+            <span class="ps-lbl">${ci.listing.name} × ${ci.qty}</span>
+            <span>${fp(ci.listing.price * ci.qty)}</span>
+          </div>`).join('')}
         <div class="price-summary-row">
           <span class="ps-lbl">You save</span>
-          <span style="color:var(--teal);font-weight:600">${fp((l.orig - l.price) * qty)}</span>
+          <span style="color:var(--teal);font-weight:600">${fp(grandOrig - grandTotal)}</span>
         </div>
         <div class="price-summary-row total-row">
           <span>Total</span>
-          <span class="ps-val" id="co-total">${fp(total)}</span>
+          <span class="ps-val">${fp(grandTotal)}</span>
         </div>
       </div>
 
       <div style="padding:0 20px">
-        <button class="btn-primary" id="confirm-btn" onclick="confirmOrder('${l.id}')">
-          Confirm Reservation — ${fp(total)}
+        <button class="btn-primary" id="confirm-btn" onclick="confirmOrder()">
+          Confirm Reservation — ${fp(grandTotal)}
         </button>
         <p style="text-align:center;font-size:0.73rem;color:var(--muted);margin-top:8px">Pay at pickup · No advance payment required</p>
       </div>
@@ -1421,13 +1473,15 @@ function vOtpVerify() {
 //  VIEW: SUCCESS
 // ══════════════════════════════
 function vSuccess() {
-  const o = S.order;
-  if (!o) { go('home'); return ''; }
+  const orders = S.orders;
+  if (!orders || orders.length === 0) { go('home'); return ''; }
+  const grandTotal = orders.reduce((s, o) => s + o.total, 0);
   return `
     <div class="success-view">
       <div class="success-circle">✅</div>
-      <div class="success-title">Bag Reserved!</div>
-      <div class="success-sub">Your rescue bag is confirmed. Head to the pickup spot at the right time and show your order ID.</div>
+      <div class="success-title">${orders.length > 1 ? orders.length + ' Bags Reserved!' : 'Bag Reserved!'}</div>
+      <div class="success-sub">Your rescue ${orders.length > 1 ? 'bags are' : 'bag is'} confirmed. Head to the pickup spot at the right time and show your order ID.</div>
+      ${orders.map(o => `
       <div class="success-card">
         <div class="sc-row"><span class="sc-lbl">Order ID</span><span class="sc-val" style="font-family:monospace;font-size:0.82rem">${o.id}</span></div>
         <div class="sc-row"><span class="sc-lbl">Bag</span><span class="sc-val">${o.name}</span></div>
@@ -1435,7 +1489,8 @@ function vSuccess() {
         <div class="sc-row"><span class="sc-lbl">Pickup</span><span class="sc-val">${o.window}</span></div>
         <div class="sc-row"><span class="sc-lbl">Qty</span><span class="sc-val">${o.qty} bag${o.qty > 1 ? 's' : ''}</span></div>
         <div class="sc-row"><span class="sc-lbl">Amount due</span><span class="sc-val" style="color:var(--teal)">${fp(o.total)} (pay at pickup)</span></div>
-      </div>
+      </div>`).join('')}
+      ${orders.length > 1 ? `<div style="background:var(--teal-dark);color:white;border-radius:var(--radius);padding:12px 16px;margin-top:8px;text-align:center;font-weight:700">Total to pay at pickup: ${fp(grandTotal)}</div>` : ''}
       <div class="tip-box">
         <div class="tip-title">💡 What to bring</div>
         <div class="tip-text">Show your order ID at the counter. Bring cash or UPI. A reusable bag is appreciated!</div>
@@ -2061,22 +2116,55 @@ function deleteBizAccount() {
   go('profile');
 }
 
+// ── Cart helpers ─────────────────────────────────────
+function saveCart() { localStorage.setItem('rb_cart', JSON.stringify(S.cart)); }
+
+function addToCart(lid) {
+  const l = getL().find(x => x.id === lid);
+  if (!l) return;
+  const existing = S.cart.find(i => i.listingId === lid);
+  if (existing) {
+    existing.qty = Math.min(l.rem, existing.qty + S.qty);
+  } else {
+    S.cart.push({ listingId: lid, qty: Math.min(l.rem, S.qty) });
+  }
+  saveCart();
+  S.qty = 1;
+  showToast(`Added to cart! 🛒 (${S.cart.reduce((s,i)=>s+i.qty,0)} item${S.cart.reduce((s,i)=>s+i.qty,0)>1?'s':''})`);
+  render(); // refresh header badge
+}
+
+function removeFromCart(lid) {
+  S.cart = S.cart.filter(i => i.listingId !== lid);
+  saveCart();
+  render();
+}
+
+function updateCartQty(lid, delta) {
+  const item = S.cart.find(i => i.listingId === lid);
+  if (!item) return;
+  const l = getL().find(x => x.id === lid);
+  item.qty = Math.max(1, Math.min(l ? l.rem : 99, item.qty + delta));
+  saveCart();
+  render();
+}
+
+// changeQty — detail view qty selector (before add to cart)
 function changeQty(d) {
   const l = getL().find(x => x.id === S.listingId);
   S.qty = Math.max(1, Math.min(l ? l.rem : 10, S.qty + d));
   const qv = document.getElementById('qty-val');
   if (qv) qv.textContent = S.qty;
-  const cb = document.getElementById('confirm-btn');
-  if (cb && l) cb.textContent = `Confirm Reservation — ₹${l.price * S.qty}`;
-  const ct = document.getElementById('co-total');
-  if (ct && l) ct.textContent = fp(l.price * S.qty);
+  // Update "Add to Cart" button price
+  const btn = document.querySelector('.sticky-cta .btn-primary');
+  if (btn && l) btn.textContent = `Add to Cart 🛒 — ${fp(l.price * S.qty)}`;
 }
 
 function genOtp() {
   return String(Math.floor(100000 + Math.random() * 900000));
 }
 
-async function confirmOrder(lid) {
+async function confirmOrder() {
   const name  = document.getElementById('co-name')?.value.trim();
   const email = document.getElementById('co-email')?.value.trim();
   const cc    = document.getElementById('co-cc')?.value || '+91';
@@ -2086,46 +2174,32 @@ async function confirmOrder(lid) {
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showToast('Please enter a valid email address'); return; }
   if (!phone) { showToast('Please enter your phone number'); return; }
 
-  const l = getL().find(x => x.id === lid);
-  if (!l || l.rem < S.qty) { showToast('Not enough bags available'); return; }
+  const items = S.cart.map(ci => ({ ...ci, listing: getL().find(l => l.id === ci.listingId) })).filter(ci => ci.listing);
+  if (items.length === 0) { showToast('Your cart is empty'); go('cart'); return; }
+
+  // Check stock for all items
+  for (const ci of items) {
+    if (ci.listing.rem < ci.qty) { showToast(`Not enough "${ci.listing.name}" bags available`); return; }
+  }
 
   const btn = document.getElementById('confirm-btn');
   if (btn) { btn.disabled = true; btn.textContent = 'Generating code…'; }
 
-  // Save user details locally + sync to DB
+  // Save user details
   S.user = { ...S.user, name, email, phone, countryCode: cc };
   localStorage.setItem('rb_user', JSON.stringify(S.user));
-  supa.from('consumers').upsert({
-    id: CID, name, email,
-    phone: cc + ' ' + phone,
-    country_code: cc,
-    updated_at: new Date().toISOString(),
-  }, { onConflict: 'id' }).then(({ error }) => {
-    if (error) console.warn('Consumer DB sync at checkout failed:', error.message);
+  supa.from('consumers').upsert({ id: CID, name, email, phone: cc+' '+phone, country_code: cc, updated_at: new Date().toISOString() }, { onConflict: 'id' }).then(({error}) => { if (error) console.warn('Consumer sync:', error.message); });
+
+  // Build one pending order row per cart item
+  S.pendingOrders = items.map(ci => {
+    const l = ci.listing;
+    return { id: uid(), listing_id: l.id, biz_id: l.bizId, name: l.name, biz_name: l.bizName, area: l.area, emoji: l.emoji, cat: l.cat, pickup_window: l.window, qty: ci.qty, price: l.price, orig: l.orig, total: l.price * ci.qty, customer: name, phone: cc+' '+phone, consumer_id: CID, status: 'confirmed' };
   });
 
-  // Build pending order (inserted only after OTP confirmed)
-  const orderId = uid();
-  S.pendingOrder = {
-    id: orderId, listing_id: lid, biz_id: l.bizId,
-    name: l.name, biz_name: l.bizName, area: l.area,
-    emoji: l.emoji, cat: l.cat, pickup_window: l.window,
-    qty: S.qty, price: l.price, orig: l.orig,
-    total: l.price * S.qty,
-    customer: name, phone: cc + ' ' + phone, consumer_id: CID, status: 'confirmed',
-  };
-
-  // Generate OTP and store with 10-min expiry
   S.otpCode   = genOtp();
   S.otpEmail  = email;
   S.otpExpiry = Date.now() + 10 * 60 * 1000;
-
-  // Persist token to Supabase so it survives a page refresh
-  await supa.from('otp_tokens').upsert({
-    email,
-    code: S.otpCode,
-    expires_at: new Date(S.otpExpiry).toISOString(),
-  }, { onConflict: 'email' }).select();  // errors silently — in-memory is the source of truth
+  await supa.from('otp_tokens').upsert({ email, code: S.otpCode, expires_at: new Date(S.otpExpiry).toISOString() }, { onConflict: 'email' }).select();
 
   go('otpverify');
 }
@@ -2134,54 +2208,55 @@ async function verifyAndCompleteOrder() {
   const entered = document.getElementById('otp-code')?.value.trim();
   if (!entered || entered.length < 6) { showToast('Please enter the 6-digit code'); return; }
 
-  // Check expiry
   if (!S.otpCode || !S.otpExpiry) { showToast('Session expired — please start again'); go('checkout'); return; }
   if (Date.now() > S.otpExpiry)   { showToast('Code has expired — tap "Get a new code"'); return; }
   if (entered !== S.otpCode)      { showToast('Incorrect code — please try again'); return; }
 
   const btn = document.getElementById('otp-verify-btn');
-  if (btn) { btn.disabled = true; btn.textContent = 'Placing order…'; }
+  if (btn) { btn.disabled = true; btn.textContent = 'Placing orders…'; }
 
-  const p = S.pendingOrder;
-  if (!p) { showToast('Order data lost — please start again'); go('home'); return; }
+  const orders = S.pendingOrders;
+  if (!orders || orders.length === 0) { showToast('Order data lost — please start again'); go('home'); return; }
 
-  const l = getL().find(x => x.id === p.listing_id);
-  if (!l || l.rem < p.qty) { showToast('Sorry, bag is no longer available'); go('home'); return; }
+  // Insert all orders + update rem for each listing in parallel
+  const results = await Promise.all(orders.flatMap(p => {
+    const l = getL().find(x => x.id === p.listing_id);
+    if (!l || l.rem < p.qty) return [Promise.resolve({ error: { message: `${p.name} no longer available` } })];
+    return [
+      supa.from('orders').insert(p),
+      supa.from('listings').update({ rem: l.rem - p.qty }).eq('id', p.listing_id),
+    ];
+  }));
 
-  const [{ error: oe }, { error: le }] = await Promise.all([
-    supa.from('orders').insert(p),
-    supa.from('listings').update({ rem: l.rem - p.qty }).eq('id', p.listing_id),
-  ]);
-
-  if (oe || le) {
-    showToast('Error placing order — please try again');
+  const failed = results.find(r => r.error);
+  if (failed) {
+    showToast('Error: ' + (failed.error.message || 'Could not place orders'));
     if (btn) { btn.disabled = false; btn.textContent = 'Verify & Complete Reservation'; }
     return;
   }
 
   // Update in-memory cache
-  DB.orders.push({ ...p, created_at: new Date().toISOString() });
-  const dbL = DB.listings.find(x => x.id === p.listing_id);
-  if (dbL) dbL.rem -= p.qty;
+  const now = new Date().toISOString();
+  orders.forEach(p => {
+    DB.orders.push({ ...p, created_at: now });
+    const dbL = DB.listings.find(x => x.id === p.listing_id);
+    if (dbL) dbL.rem -= p.qty;
+  });
 
-  // Clean up OTP state
-  S.otpCode = null; S.otpExpiry = null; S.pendingOrder = null;
+  // Clear cart + OTP state
+  S.cart = []; saveCart();
+  S.otpCode = null; S.otpExpiry = null; S.pendingOrders = [];
   supa.from('otp_tokens').delete().eq('email', S.otpEmail).then(() => {});
 
-  S.order = mapO({ ...p, created_at: new Date().toISOString() });
+  S.orders = orders.map(p => mapO({ ...p, created_at: now }));
   go('success');
 }
 
 function resendOtp() {
-  if (!S.otpEmail || !S.pendingOrder) { showToast('Please restart checkout'); go('home'); return; }
+  if (!S.otpEmail || !S.pendingOrders.length) { showToast('Please restart checkout'); go('home'); return; }
   S.otpCode   = genOtp();
   S.otpExpiry = Date.now() + 10 * 60 * 1000;
-  supa.from('otp_tokens').upsert({
-    email: S.otpEmail,
-    code: S.otpCode,
-    expires_at: new Date(S.otpExpiry).toISOString(),
-  }, { onConflict: 'email' }).select().then(() => {});
-  // Refresh the code display
+  supa.from('otp_tokens').upsert({ email: S.otpEmail, code: S.otpCode, expires_at: new Date(S.otpExpiry).toISOString() }, { onConflict: 'email' }).select().then(() => {});
   const d = document.getElementById('otp-display');
   if (d) d.textContent = S.otpCode;
   showToast('New code generated!');
