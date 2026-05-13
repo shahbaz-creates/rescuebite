@@ -7,6 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
   <style>
     :root {
       --cream:      #f4faff;
@@ -867,6 +868,8 @@
 // ══════════════════════════════
 //  SUPABASE
 // ══════════════════════════════
+const RAZORPAY_KEY = 'rzp_test_YOUR_KEY_HERE';
+
 const SUPA_URL = 'https://lygnbqosegbivlcxegkq.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx5Z25icW9zZWdiaXZsY3hlZ2txIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgwODcwOTYsImV4cCI6MjA5MzY2MzA5Nn0.vI6HVo8-boowvVfizJDzqcqomFWxF8pz2Ve7e093LDQ';
 const supa = supabase.createClient(SUPA_URL, SUPA_KEY);
@@ -1416,10 +1419,10 @@ function vCheckout() {
       </div>
 
       <div style="padding:0 20px">
-        <button class="btn-primary" id="confirm-btn" onclick="confirmOrder()">
-          Confirm Reservation — ${fp(grandTotal)}
+        <button class="btn-primary" id="confirm-btn" onclick="openRazorpay()">
+          Pay ${fp(grandTotal)} with Razorpay
         </button>
-        <p style="text-align:center;font-size:0.73rem;color:var(--muted);margin-top:8px">Pay at pickup · No advance payment required</p>
+        <p style="text-align:center;font-size:0.73rem;color:var(--muted);margin-top:8px">UPI · Cards · Netbanking · Wallets · Secure checkout</p>
       </div>
     </div>`;
 }
@@ -2193,6 +2196,91 @@ function genOtp() {
   return String(Math.floor(100000 + Math.random() * 900000));
 }
 
+function openRazorpay() {
+  const name  = document.getElementById('co-name')?.value.trim();
+  const email = document.getElementById('co-email')?.value.trim();
+  const cc    = document.getElementById('co-cc')?.value || '+91';
+  const phone = document.getElementById('co-phone')?.value.trim();
+
+  if (!name)  { showToast('Please enter your name'); return; }
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showToast('Please enter a valid email address'); return; }
+  if (!phone) { showToast('Please enter your phone number'); return; }
+
+  const items = S.cart.map(ci => ({ ...ci, listing: getL().find(l => l.id === ci.listingId) })).filter(ci => ci.listing);
+  if (items.length === 0) { showToast('Your cart is empty'); go('cart'); return; }
+
+  for (const ci of items) {
+    if (ci.listing.rem < ci.qty) { showToast(`Not enough "${ci.listing.name}" bags available`); return; }
+  }
+
+  // Save user details
+  S.user = { ...S.user, name, email, phone, countryCode: cc };
+  localStorage.setItem('rb_user', JSON.stringify(S.user));
+  supa.from('consumers').upsert({ id: CID, name, email, phone: cc+' '+phone, country_code: cc, updated_at: new Date().toISOString() }, { onConflict: 'id' }).then(({error}) => { if (error) console.warn('Consumer sync:', error.message); });
+
+  // Build pending orders
+  S.pendingOrders = items.map(ci => {
+    const l = ci.listing;
+    return { id: uid(), listing_id: l.id, biz_id: l.bizId, name: l.name, biz_name: l.bizName, area: l.area, emoji: l.emoji, cat: l.cat, pickup_window: l.window, qty: ci.qty, price: l.price, orig: l.orig, total: l.price * ci.qty, customer: name, phone: cc+' '+phone, consumer_id: CID, status: 'confirmed' };
+  });
+
+  const grandTotal = items.reduce((s, ci) => s + ci.listing.price * ci.qty, 0);
+
+  const btn = document.getElementById('confirm-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Opening payment…'; }
+
+  const rzp = new Razorpay({
+    key: RAZORPAY_KEY,
+    amount: grandTotal * 100, // paise
+    currency: 'INR',
+    name: 'RescueBite',
+    description: `${items.length} rescue bag${items.length > 1 ? 's' : ''}`,
+    prefill: { name, email, contact: cc.replace('+', '') + phone },
+    theme: { color: '#00695f' },
+    handler: function(response) {
+      completeOrderAfterPayment(response.razorpay_payment_id);
+    },
+    modal: {
+      ondismiss: function() {
+        if (btn) { btn.disabled = false; btn.textContent = `Pay ${fp(grandTotal)} with Razorpay`; }
+      }
+    }
+  });
+  rzp.open();
+}
+
+async function completeOrderAfterPayment(paymentId) {
+  const orders = S.pendingOrders;
+  if (!orders || orders.length === 0) { showToast('Order data lost — please start again'); go('home'); return; }
+
+  // Tag each order with the Razorpay payment ID
+  const taggedOrders = orders.map(p => ({ ...p, payment_id: paymentId }));
+
+  const results = await Promise.all(taggedOrders.flatMap(p => {
+    const l = getL().find(x => x.id === p.listing_id);
+    if (!l || l.rem < p.qty) return [Promise.resolve({ error: { message: `${p.name} no longer available` } })];
+    return [
+      supa.from('orders').insert(p),
+      supa.from('listings').update({ rem: l.rem - p.qty }).eq('id', p.listing_id),
+    ];
+  }));
+
+  const failed = results.find(r => r.error);
+  if (failed) { showToast('Error: ' + (failed.error.message || 'Could not place orders')); go('checkout'); return; }
+
+  const now = new Date().toISOString();
+  taggedOrders.forEach(p => {
+    DB.orders.push({ ...p, created_at: now });
+    const dbL = DB.listings.find(x => x.id === p.listing_id);
+    if (dbL) dbL.rem -= p.qty;
+  });
+
+  S.cart = []; saveCart();
+  S.pendingOrders = [];
+  S.orders = taggedOrders.map(p => mapO({ ...p, created_at: now }));
+  go('success');
+}
+
 async function confirmOrder() {
   const name  = document.getElementById('co-name')?.value.trim();
   const email = document.getElementById('co-email')?.value.trim();
@@ -2206,7 +2294,6 @@ async function confirmOrder() {
   const items = S.cart.map(ci => ({ ...ci, listing: getL().find(l => l.id === ci.listingId) })).filter(ci => ci.listing);
   if (items.length === 0) { showToast('Your cart is empty'); go('cart'); return; }
 
-  // Check stock for all items
   for (const ci of items) {
     if (ci.listing.rem < ci.qty) { showToast(`Not enough "${ci.listing.name}" bags available`); return; }
   }
@@ -2214,12 +2301,10 @@ async function confirmOrder() {
   const btn = document.getElementById('confirm-btn');
   if (btn) { btn.disabled = true; btn.textContent = 'Generating code…'; }
 
-  // Save user details
   S.user = { ...S.user, name, email, phone, countryCode: cc };
   localStorage.setItem('rb_user', JSON.stringify(S.user));
   supa.from('consumers').upsert({ id: CID, name, email, phone: cc+' '+phone, country_code: cc, updated_at: new Date().toISOString() }, { onConflict: 'id' }).then(({error}) => { if (error) console.warn('Consumer sync:', error.message); });
 
-  // Build one pending order row per cart item
   S.pendingOrders = items.map(ci => {
     const l = ci.listing;
     return { id: uid(), listing_id: l.id, biz_id: l.bizId, name: l.name, biz_name: l.bizName, area: l.area, emoji: l.emoji, cat: l.cat, pickup_window: l.window, qty: ci.qty, price: l.price, orig: l.orig, total: l.price * ci.qty, customer: name, phone: cc+' '+phone, consumer_id: CID, status: 'confirmed' };
