@@ -2271,26 +2271,26 @@ async function completeOrderAfterPayment(paymentId) {
   const orders = S.pendingOrders;
   if (!orders || orders.length === 0) { showToast('Order data lost — please start again'); go('home'); return; }
 
-  // Tag each order with the Razorpay payment ID
   const taggedOrders = orders.map(p => ({ ...p, payment_id: paymentId }));
 
-  const results = await Promise.all(taggedOrders.flatMap(p => {
-    const l = getL().find(x => x.id === p.listing_id);
-    if (!l || l.rem < p.qty) return [Promise.resolve({ error: { message: `${p.name} no longer available` } })];
-    return [
-      supa.from('orders').insert(p),
-      supa.from('listings').update({ rem: l.rem - p.qty }).eq('id', p.listing_id),
-    ];
-  }));
+  // Insert orders only — the DB trigger atomically decrements rem and rejects if out of stock
+  const results = await Promise.all(taggedOrders.map(p => supa.from('orders').insert(p)));
 
   const failed = results.find(r => r.error);
-  if (failed) { showToast('Error: ' + (failed.error.message || 'Could not place orders')); go('checkout'); return; }
+  if (failed) {
+    const msg = failed.error.message || '';
+    const userMsg = msg.includes('Insufficient stock') ? 'Some bags just sold out — please update your cart' : 'Could not place order, please try again';
+    showToast(userMsg);
+    go('cart');
+    return;
+  }
 
+  // Update local cache to reflect new rem values
   const now = new Date().toISOString();
   taggedOrders.forEach(p => {
     DB.orders.push({ ...p, created_at: now });
     const dbL = DB.listings.find(x => x.id === p.listing_id);
-    if (dbL) dbL.rem -= p.qty;
+    if (dbL) dbL.rem = Math.max(0, dbL.rem - p.qty);
   });
 
   S.cart = []; saveCart();
