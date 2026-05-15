@@ -949,6 +949,7 @@ const pct   = (o, p) => Math.round(((o - p) / o) * 100) + '% off';
 const save  = (o, p) => '₹' + (o - p) + ' saved';
 const uid   = () => 'o_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
 const catCls = c => ({ bakery: 'bakery', restaurant: 'restaurant', cafe: 'cafe', grocery: 'grocery' }[c] || 'restaurant');
+const esc = s => s == null ? '' : String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 
 function timeAgo(ts) {
   const m = Math.floor((Date.now() - ts) / 60000);
@@ -1044,7 +1045,7 @@ function renderHeader() {
         </div>
       </div>
       ${S.view === 'bizdash' && biz ? `
-      <div style="padding:0 20px 10px;font-size:0.8rem;color:var(--muted);font-weight:500">📍 ${biz.name} · ${biz.area}</div>` : ''}`;
+      <div style="padding:0 20px 10px;font-size:0.8rem;color:var(--muted);font-weight:500">📍 ${esc(biz.name)} · ${esc(biz.area)}</div>` : ''}`;
     return;
   }
 
@@ -1202,14 +1203,14 @@ function listingCard(l) {
   return `
     <div class="listing-card" onclick="go('detail',{listingId:'${l.id}'})">
       <div class="card-banner ${catCls(l.cat)}">
-        ${l.emoji}
+        ${esc(l.emoji)}
         <div class="cb-badge">${pct(l.orig, l.price)}</div>
         <div class="cb-timer">⏱ ${l.until}</div>
       </div>
       <div class="card-body">
-        <div class="card-biz">📍 ${l.bizName} · ${l.area}</div>
-        <div class="card-name">${l.name}</div>
-        <div class="card-desc">${l.desc && l.desc.length > 85 ? l.desc.slice(0,85) + '…' : (l.desc || '')}</div>
+        <div class="card-biz">📍 ${esc(l.bizName)} · ${esc(l.area)}</div>
+        <div class="card-name">${esc(l.name)}</div>
+        <div class="card-desc">${l.desc && l.desc.length > 85 ? esc(l.desc.slice(0,85)) + '…' : esc(l.desc)}</div>
         <div class="card-footer">
           <div>
             <span class="price-now">${fp(l.price)}</span>
@@ -1230,23 +1231,23 @@ function vDetail() {
 
   return `
     <div class="detail-hero ${catCls(l.cat)}" style="font-size:5rem">
-      ${l.emoji}
+      ${esc(l.emoji)}
       <div class="cb-badge" style="position:absolute;top:14px;right:14px">${pct(l.orig, l.price)}</div>
     </div>
     <div class="detail-content">
       <div class="detail-biz-row">
-        <div class="detail-biz-name">${l.bizName}</div>
+        <div class="detail-biz-name">${esc(l.bizName)}</div>
         <div class="rating-pill">⭐ ${l.rating} (${l.reviews})</div>
       </div>
-      <div class="detail-loc">📍 ${l.area}, ${l.city} · ${l.bizType}</div>
-      <div class="detail-title">${l.name}</div>
-      <div class="detail-desc">${l.desc}</div>
+      <div class="detail-loc">📍 ${esc(l.area)}, ${esc(l.city)} · ${esc(l.bizType)}</div>
+      <div class="detail-title">${esc(l.name)}</div>
+      <div class="detail-desc">${esc(l.desc)}</div>
       <div class="divider"></div>
       <div class="info-row">
         <div class="info-icon">📦</div>
         <div>
           <div class="info-label">What's inside</div>
-          <ul class="contents-list">${(l.contents || []).map(c => `<li>${c}</li>`).join('')}</ul>
+          <ul class="contents-list">${(l.contents || []).map(c => `<li>${esc(c)}</li>`).join('')}</ul>
         </div>
       </div>
       <div class="divider"></div>
@@ -1254,14 +1255,14 @@ function vDetail() {
         <div class="info-icon">🕐</div>
         <div>
           <div class="info-label">Pickup window</div>
-          <div class="info-val">${l.window}</div>
+          <div class="info-val">${esc(l.window)}</div>
         </div>
       </div>
       <div class="info-row">
         <div class="info-icon">📍</div>
         <div>
           <div class="info-label">Location</div>
-          <div class="info-val">${l.area}, ${l.city}</div>
+          <div class="info-val">${esc(l.area)}, ${esc(l.city)}</div>
         </div>
       </div>
       <div class="info-row">
@@ -1318,11 +1319,11 @@ function vCart() {
       ${items.map(ci => { const l = ci.listing; return `
         <div style="margin:0 16px 12px;background:var(--cream);border-radius:var(--radius-lg);padding:14px 16px">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
-            <div class="op-emoji ${catCls(l.cat)}" style="width:44px;height:44px;font-size:1.4rem">${l.emoji}</div>
+            <div class="op-emoji ${catCls(l.cat)}" style="width:44px;height:44px;font-size:1.4rem">${esc(l.emoji)}</div>
             <div style="flex:1;min-width:0">
-              <div style="font-weight:700;font-size:0.92rem;color:var(--dark);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${l.name}</div>
-              <div style="font-size:0.75rem;color:var(--muted)">${l.bizName} · ${l.area}</div>
-              <div style="font-size:0.72rem;color:var(--teal);margin-top:2px">🕐 ${l.window}</div>
+              <div style="font-weight:700;font-size:0.92rem;color:var(--dark);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.name)}</div>
+              <div style="font-size:0.75rem;color:var(--muted)">${esc(l.bizName)} · ${esc(l.area)}</div>
+              <div style="font-size:0.72rem;color:var(--teal);margin-top:2px">🕐 ${esc(l.window)}</div>
             </div>
             <div style="text-align:right">
               <div style="font-weight:800;font-size:0.95rem;color:var(--dark)">${fp(l.price * ci.qty)}</div>
@@ -1371,10 +1372,10 @@ function vCheckout() {
         <div class="co-section-title">Order Summary (${items.length} item${items.length>1?'s':''})</div>
         ${items.map(ci => { const l = ci.listing; return `
           <div class="order-preview" style="margin-bottom:8px">
-            <div class="op-emoji ${catCls(l.cat)}">${l.emoji}</div>
+            <div class="op-emoji ${catCls(l.cat)}">${esc(l.emoji)}</div>
             <div class="op-info" style="flex:1">
-              <div class="op-name">${l.name}</div>
-              <div class="op-biz">${l.bizName} · Qty ${ci.qty}</div>
+              <div class="op-name">${esc(l.name)}</div>
+              <div class="op-biz">${esc(l.bizName)} · Qty ${ci.qty}</div>
             </div>
             <div class="op-price">${fp(l.price * ci.qty)}</div>
           </div>`;}).join('')}
@@ -1384,11 +1385,11 @@ function vCheckout() {
         <div class="co-section-title">Your Details</div>
         <div class="form-field">
           <label class="form-label">Full Name</label>
-          <input class="form-input" id="co-name" type="text" placeholder="Your name" value="${S.user.name}" autocomplete="name">
+          <input class="form-input" id="co-name" type="text" placeholder="Your name" value="${esc(S.user.name)}" autocomplete="name">
         </div>
         <div class="form-field">
           <label class="form-label">Email Address <span style="color:var(--terra);font-size:0.65rem;font-weight:700;margin-left:4px">OTP VERIFIED</span></label>
-          <input class="form-input" id="co-email" type="email" placeholder="you@example.com" value="${S.user.email}" autocomplete="email">
+          <input class="form-input" id="co-email" type="email" placeholder="you@example.com" value="${esc(S.user.email)}" autocomplete="email">
         </div>
         <div class="form-field" style="margin-bottom:0">
           <label class="form-label">Phone Number</label>
@@ -1396,7 +1397,7 @@ function vCheckout() {
             <select class="form-input" id="co-cc" style="width:auto;flex-shrink:0;padding-right:30px">
               ${COUNTRY_CODES.map(c => `<option value="${c.code}" ${c.code===(S.user.countryCode||'+91')?'selected':''}>${c.flag} ${c.code}</option>`).join('')}
             </select>
-            <input class="form-input" id="co-phone" type="tel" placeholder="98765 43210" value="${S.user.phone}" autocomplete="tel-national" style="flex:1;min-width:0">
+            <input class="form-input" id="co-phone" type="tel" placeholder="98765 43210" value="${esc(S.user.phone)}" autocomplete="tel-national" style="flex:1;min-width:0">
           </div>
         </div>
       </div>
@@ -1487,9 +1488,9 @@ function vSuccess() {
       ${orders.map(o => `
       <div class="success-card">
         <div class="sc-row"><span class="sc-lbl">Order ID</span><span class="sc-val" style="font-family:monospace;font-size:0.82rem">${o.id}</span></div>
-        <div class="sc-row"><span class="sc-lbl">Bag</span><span class="sc-val">${o.name}</span></div>
-        <div class="sc-row"><span class="sc-lbl">From</span><span class="sc-val">${o.bizName}</span></div>
-        <div class="sc-row"><span class="sc-lbl">Pickup</span><span class="sc-val">${o.window}</span></div>
+        <div class="sc-row"><span class="sc-lbl">Bag</span><span class="sc-val">${esc(o.name)}</span></div>
+        <div class="sc-row"><span class="sc-lbl">From</span><span class="sc-val">${esc(o.bizName)}</span></div>
+        <div class="sc-row"><span class="sc-lbl">Pickup</span><span class="sc-val">${esc(o.window)}</span></div>
         <div class="sc-row"><span class="sc-lbl">Qty</span><span class="sc-val">${o.qty} bag${o.qty > 1 ? 's' : ''}</span></div>
         <div class="sc-row"><span class="sc-lbl">Amount due</span><span class="sc-val" style="color:var(--teal)">${fp(o.total)} (pay at pickup)</span></div>
       </div>`).join('')}
@@ -1523,10 +1524,10 @@ function vOrders() {
       ${orders.map(o => `
         <div class="order-card">
           <div class="oc-top">
-            <div class="oc-emoji ${catCls(o.cat)}">${o.emoji}</div>
+            <div class="oc-emoji ${catCls(o.cat)}">${esc(o.emoji)}</div>
             <div style="flex:1">
-              <div class="oc-name">${o.name}</div>
-              <div class="oc-biz">${o.bizName} · ${o.area}</div>
+              <div class="oc-name">${esc(o.name)}</div>
+              <div class="oc-biz">${esc(o.bizName)} · ${esc(o.area)}</div>
             </div>
             <div class="oc-price">${fp(o.total)}</div>
           </div>
@@ -1534,7 +1535,7 @@ function vOrders() {
             <div class="status-pill ${o.status === 'collected' ? 'collected' : 'confirmed'}">
               ${o.status === 'collected' ? '✓ Collected' : '✓ Confirmed'}
             </div>
-            <div class="oc-date">${timeAgo(o.at)} · Pickup ${o.window}</div>
+            <div class="oc-date">${timeAgo(o.at)} · Pickup ${esc(o.window)}</div>
           </div>
         </div>`).join('')}
     </div>`;
@@ -1676,9 +1677,9 @@ function vProfile() {
 
   const partnerPanel = biz ? `
     <div style="margin:8px 20px 4px;background:var(--teal-dark);border-radius:var(--radius-lg);padding:18px 20px;color:white">
-      <div style="font-size:0.65rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--saffron);margin-bottom:4px">${biz.type}</div>
-      <div style="font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:1.15rem">${biz.name}</div>
-      <div style="font-size:0.78rem;color:rgba(255,255,255,0.6);margin-top:3px">📍 ${biz.area}, ${biz.city}</div>
+      <div style="font-size:0.65rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--saffron);margin-bottom:4px">${esc(biz.type)}</div>
+      <div style="font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:1.15rem">${esc(biz.name)}</div>
+      <div style="font-size:0.78rem;color:rgba(255,255,255,0.6);margin-top:3px">📍 ${esc(biz.area)}, ${esc(biz.city)}</div>
     </div>
     <div class="profile-list" style="padding-top:4px">
       ${S.bizMode ? `
@@ -1693,7 +1694,7 @@ function vProfile() {
       </div>`}
       <div class="profile-item" onclick="go('bizsetup')">
         <div class="pi-icon">✏️</div>
-        <div class="pi-text"><div class="pi-label">Edit Business Details</div><div class="pi-sub">${biz.name} · ${biz.area}</div></div>
+        <div class="pi-text"><div class="pi-label">Edit Business Details</div><div class="pi-sub">${esc(biz.name)} · ${esc(biz.area)}</div></div>
         <div class="pi-right">›</div>
       </div>
       <div class="profile-item" onclick="signOutPartner()">
@@ -1727,8 +1728,8 @@ function vBizDash() {
   return `
     <div class="biz-hero">
       <div class="biz-tag">Partner Dashboard</div>
-      <div class="biz-name">${biz.name}</div>
-      <div class="biz-sub">📍 ${biz.area}, ${biz.city} · ${biz.type}</div>
+      <div class="biz-name">${esc(biz.name)}</div>
+      <div class="biz-sub">📍 ${esc(biz.area)}, ${esc(biz.city)} · ${esc(biz.type)}</div>
     </div>
     <div class="biz-stats">
       <div class="biz-stat"><div class="biz-stat-val">${listings.length}</div><div class="biz-stat-lbl">Active Listings</div></div>
@@ -1746,9 +1747,9 @@ function vBizDash() {
     ${listings.map(l => `
       <div class="biz-listing-card">
         <div class="blc-top">
-          <div class="blc-emoji ${catCls(l.cat)}">${l.emoji}</div>
+          <div class="blc-emoji ${catCls(l.cat)}">${esc(l.emoji)}</div>
           <div style="flex:1">
-            <div class="blc-name">${l.name}</div>
+            <div class="blc-name">${esc(l.name)}</div>
             <div class="blc-meta">Pickup until ${l.until}</div>
           </div>
           <div class="blc-price">${fp(l.price)}</div>
@@ -1790,13 +1791,13 @@ function vBizOrders() {
           <div class="boc-top">
             <div>
               <div class="boc-id">#${o.id.slice(-6).toUpperCase()}</div>
-              <div class="boc-name">${o.name}</div>
+              <div class="boc-name">${esc(o.name)}</div>
             </div>
             <div class="status-pill ${o.status === 'confirmed' ? 'new-order-pill' : 'collected'}">${o.status === 'confirmed' ? '🔔 New' : '✓ Done'}</div>
           </div>
           <div class="boc-detail">
-            👤 ${o.customer || 'Customer'} &nbsp;·&nbsp; 📞 ${o.phone || 'N/A'}<br>
-            📦 ${o.qty} bag${o.qty > 1 ? 's' : ''} &nbsp;·&nbsp; Pickup ${o.window}<br>
+            👤 ${esc(o.customer) || 'Customer'} &nbsp;·&nbsp; 📞 ${esc(o.phone) || 'N/A'}<br>
+            📦 ${o.qty} bag${o.qty > 1 ? 's' : ''} &nbsp;·&nbsp; Pickup ${esc(o.window)}<br>
             💰 ${fp(o.total)} to collect
           </div>
           ${o.status === 'confirmed' ? `
@@ -1932,11 +1933,11 @@ function vBizSetup() {
         <div class="co-section-title">Contact Details</div>
         <div class="form-field">
           <label class="form-label">Owner / Manager Name</label>
-          <input class="form-input" id="bs-contact" placeholder="Your full name" value="${existing ? (existing.contact || '') : (S.user.name || '')}">
+          <input class="form-input" id="bs-contact" placeholder="Your full name" value="${existing ? esc(existing.contact || '') : esc(S.user.name || '')}">
         </div>
         <div class="form-field" style="margin-bottom:0">
           <label class="form-label">Business Phone</label>
-          <input class="form-input" id="bs-phone" type="tel" placeholder="+91 98765 43210" value="${existing ? (existing.phone || '') : (S.user.phone || '')}">
+          <input class="form-input" id="bs-phone" type="tel" placeholder="+91 98765 43210" value="${existing ? esc(existing.phone || '') : esc(S.user.phone || '')}">
         </div>
       </div>
 
@@ -2009,7 +2010,7 @@ function vNewListing() {
         <div class="co-section-title">Bag Details</div>
         <div class="form-field">
           <label class="form-label">Bag Name</label>
-          <input class="form-input" id="nl-name" placeholder="e.g. Surprise Pastry Bag" value="${ev ? ev.name : ''}">
+          <input class="form-input" id="nl-name" placeholder="e.g. Surprise Pastry Bag" value="${ev ? esc(ev.name) : ''}">
         </div>
         <div class="form-field">
           <label class="form-label">Category</label>
@@ -2017,7 +2018,7 @@ function vNewListing() {
         </div>
         <div class="form-field" style="margin-bottom:0">
           <label class="form-label">Description</label>
-          <textarea class="form-input" id="nl-desc" placeholder="What's typically inside? How did it become surplus?">${ev ? ev.desc : ''}</textarea>
+          <textarea class="form-input" id="nl-desc" placeholder="What's typically inside? How did it become surplus?">${ev ? esc(ev.desc) : ''}</textarea>
         </div>
       </div>
 
